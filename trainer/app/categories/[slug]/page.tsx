@@ -2,10 +2,10 @@ import { notFound } from "next/navigation";
 import { CategoryPageClient } from "@/components/category-page-client";
 import {
   categoryDefinitions,
-  categoryOrder,
   getCategoryBySlug,
   getQuestionsForCategory,
 } from "@/lib/study-data";
+import { sortQuestionsByExamOrder } from "@/lib/question-order";
 
 export function generateStaticParams() {
   return categoryDefinitions.map((category) => ({ slug: category.slug }));
@@ -23,12 +23,8 @@ export default async function CategoryPage({
     notFound();
   }
 
-  const orderedQuestionSet = getQuestionsForCategory(category.slug).sort(
-    (a, b) => {
-      const aCategoryIndex = categoryOrder.indexOf(a.category);
-      const bCategoryIndex = categoryOrder.indexOf(b.category);
-      return aCategoryIndex - bCategoryIndex;
-    },
+  const orderedQuestionSet = sortQuestionsByExamOrder(
+    getQuestionsForCategory(category.slug),
   );
 
   return <CategoryPageClient category={category} questions={orderedQuestionSet} />;

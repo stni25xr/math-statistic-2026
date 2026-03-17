@@ -192,7 +192,6 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             moduleName={category?.title ?? question.category}
             moduleFormulas={category?.keyFormulas ?? question.formulasNeeded}
             questionFormulas={question.formulasNeeded}
-            category={question.category}
           />
         </div>
       </article>

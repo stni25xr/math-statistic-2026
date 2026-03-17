@@ -8,17 +8,9 @@ import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
 import { QuizModePanel } from "@/components/quiz-mode-panel";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
+import { sortQuestionsByExamOrder } from "@/lib/question-order";
 import { categoryDefinitions, studyQuestions } from "@/lib/study-data";
 import { CategorySlug, ProgressRating, StudyQuestion } from "@/lib/types";
-
-function shuffle<T>(items: T[]): T[] {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
 
 function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60)
@@ -58,8 +50,8 @@ export function PracticePanel() {
         ? studyQuestions
         : studyQuestions.filter((question) => question.category === selectedCategory);
 
-    const randomized = shuffle(base);
-    setSessionQuestions(randomized);
+    const ordered = sortQuestionsByExamOrder(base);
+    setSessionQuestions(ordered);
     setIndex(0);
     setRevealed(false);
     setCanProceed(false);
@@ -173,8 +165,9 @@ export function PracticePanel() {
           Practice mode
         </h1>
         <p className="mt-2 text-base text-slate-600 dark:text-slate-300">
-          Random practice by category or mixed mode. Reveal answers only after your
-          attempt. Keyboard shortcuts: N next, R reveal, 1/2/3 self-rating,
+          Exam-by-exam, question-by-question order. Filter by category and train in
+          real exam sequence. Reveal answers only after your attempt. Keyboard
+          shortcuts: N next, R reveal, 1/2/3 self-rating,
           C complete, F flag review.
         </p>
       </header>
@@ -201,6 +194,9 @@ export function PracticePanel() {
                 <h2 className="mt-1 text-4xl font-semibold text-slate-900 dark:text-slate-100">
                   {current.title}
                 </h2>
+                <p className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+                  From {current.sourceExam} · Problem {current.originalProblemNumber}
+                </p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -274,7 +270,6 @@ export function PracticePanel() {
                     ?.keyFormulas ?? current.formulasNeeded
                 }
                 questionFormulas={current.formulasNeeded}
-                category={current.category}
                 onValidationChange={setCanProceed}
               />
             </div>

@@ -29,7 +29,7 @@ export function QuizModePanel({
         Practice mode setup
       </h2>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        Choose a category or train mixed. Enable timer for exam pressure.
+        Choose a category. Questions run exam-by-exam, then question-by-question.
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -42,7 +42,7 @@ export function QuizModePanel({
             }
             className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-800"
           >
-            <option value="all">Mixed all categories</option>
+            <option value="all">All categories (exam order)</option>
             {categories.map((category) => (
               <option key={category.slug} value={category.slug}>
                 {category.title}
