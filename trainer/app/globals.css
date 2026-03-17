@@ -43,6 +43,39 @@ body {
   line-height: 1.55;
 }
 
+.exam-question-text {
+  font-family: "Times New Roman", Georgia, serif;
+}
+
+.exam-paper {
+  box-shadow: inset 0 0 0 1px rgb(148 163 184 / 14%);
+}
+
+html.a11y-dyslexia body {
+  font-family: "Atkinson Hyperlegible", "Verdana", "Tahoma", "Arial", sans-serif;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+  word-spacing: 0.08em;
+}
+
+html.a11y-dyslexia .exam-question-text {
+  font-family: "Atkinson Hyperlegible", "Verdana", "Tahoma", "Arial", sans-serif;
+  font-style: normal;
+}
+
+html.a11y-dyslexia p,
+html.a11y-dyslexia li,
+html.a11y-dyslexia label,
+html.a11y-dyslexia button,
+html.a11y-dyslexia input,
+html.a11y-dyslexia textarea {
+  line-height: 1.8;
+}
+
+html.a11y-dyslexia .katex {
+  font-size: 1.12em;
+}
+
 a {
   color: inherit;
   text-decoration: none;

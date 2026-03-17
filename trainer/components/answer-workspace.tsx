@@ -72,12 +72,19 @@ const calculatorRows = [
 const parameterTokenRegex =
   /\b(mu0|mu|sigma|lambda|theta|p_hat|p|q|n|m|s|x_bar)\b/gi;
 
+function createId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `id-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function storageKey(questionId: string): string {
   return `math-stat-2026-answer-${questionId}`;
 }
 
 function emptyParameters(): ParameterEntry[] {
-  return [{ id: crypto.randomUUID(), name: "", value: "" }];
+  return [{ id: createId(), name: "", value: "" }];
 }
 
 function loadDraft(questionId: string): DraftState {
@@ -95,7 +102,7 @@ function loadDraft(questionId: string): DraftState {
     const parameters =
       parsed.parameters?.length && Array.isArray(parsed.parameters)
         ? parsed.parameters.map((entry) => ({
-            id: entry.id || crypto.randomUUID(),
+            id: entry.id || createId(),
             name: entry.name || "",
             value: entry.value || "",
           }))
@@ -216,8 +223,8 @@ export function AnswerWorkspace({
 }: AnswerWorkspaceProps) {
   const initialDraft = loadDraft(questionId);
   const [attempt, setAttempt] = useState(initialDraft.attempt);
-  const [parameters, setParameters] = useState<ParameterEntry>(
-    initialDraft.parameters as unknown as ParameterEntry,
+  const [parameters, setParameters] = useState<ParameterEntry[]>(
+    initialDraft.parameters,
   );
   const [selectedFormulas, setSelectedFormulas] = useState<string[]>(
     initialDraft.selectedFormulas,
@@ -250,7 +257,7 @@ export function AnswerWorkspace({
   useEffect(() => {
     const payload: DraftState = {
       attempt,
-      parameters: parameters as unknown as ParameterEntry[],
+      parameters,
       selectedFormulas,
     };
     localStorage.setItem(storageKey(questionId), JSON.stringify(payload));
@@ -294,29 +301,27 @@ export function AnswerWorkspace({
 
   const updateParameter = (id: string, field: "name" | "value", value: string) => {
     setParameters((previous) =>
-      (previous as unknown as ParameterEntry[]).map((entry) =>
+      previous.map((entry) =>
         entry.id === id ? { ...entry, [field]: value } : entry,
-      ) as unknown as ParameterEntry,
+      ),
     );
     resetValidation();
   };
 
   const addParameter = () => {
     setParameters((previous) =>
-      ([
-        ...(previous as unknown as ParameterEntry[]),
-        { id: crypto.randomUUID(), name: "", value: "" },
-      ] as unknown) as ParameterEntry,
+      [
+        ...previous,
+        { id: createId(), name: "", value: "" },
+      ],
     );
     resetValidation();
   };
 
   const removeParameter = (id: string) => {
-    const entries = (parameters as unknown as ParameterEntry[]).filter(
-      (entry) => entry.id !== id,
-    );
+    const entries = parameters.filter((entry) => entry.id !== id);
 
-    setParameters((entries.length ? entries : emptyParameters()) as unknown as ParameterEntry);
+    setParameters(entries.length ? entries : emptyParameters());
     resetValidation();
   };
 
@@ -332,7 +337,7 @@ export function AnswerWorkspace({
   };
 
   const checkSetup = () => {
-    const filled = (parameters as unknown as ParameterEntry[])
+    const filled = parameters
       .filter((entry) => entry.name.trim() && entry.value.trim())
       .map((entry) => normalizeParameterName(entry.name));
     const filledSet = new Set<string>(filled);
@@ -514,7 +519,7 @@ export function AnswerWorkspace({
               ) : null}
 
               <div className="mt-2 space-y-2">
-                {(parameters as unknown as ParameterEntry[]).map((entry) => (
+                {parameters.map((entry) => (
                   <div key={entry.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                     <input
                       value={entry.name}

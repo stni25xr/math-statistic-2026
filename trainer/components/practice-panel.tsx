@@ -38,6 +38,7 @@ export function PracticePanel() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [canProceed, setCanProceed] = useState(false);
 
   const { progress, toggleCompleted, toggleReview, setRating } = useProgress();
 
@@ -61,6 +62,7 @@ export function PracticePanel() {
     setSessionQuestions(randomized);
     setIndex(0);
     setRevealed(false);
+    setCanProceed(false);
 
     if (timedMode) {
       const safeMinutes = Number.isFinite(timerMinutes)
@@ -73,12 +75,13 @@ export function PracticePanel() {
   };
 
   const goNext = useCallback(() => {
-    if (!started) {
+    if (!started || !canProceed) {
       return;
     }
     setIndex((previous) => (previous + 1) % sessionQuestions.length);
     setRevealed(false);
-  }, [sessionQuestions.length, started]);
+    setCanProceed(false);
+  }, [canProceed, sessionQuestions.length, started]);
 
   const applyRating = (rating: ProgressRating) => {
     if (!current) {
@@ -215,12 +218,26 @@ export function PracticePanel() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-base font-semibold text-white hover:bg-blue-700"
+                  disabled={!canProceed}
+                  className={`rounded-lg px-4 py-2 text-base font-semibold text-white ${
+                    canProceed
+                      ? "bg-blue-600 hover:bg-blue-700"
+                      : "bg-slate-400 cursor-not-allowed"
+                  }`}
                 >
                   Next question
                 </button>
               </div>
             </div>
+            {!canProceed ? (
+              <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+                Complete setup checkpoint in the workspace to unlock next question.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                Checkpoint passed. You can proceed to the next question.
+              </p>
+            )}
 
             <div className="mt-4">
               <ExamQuestionBlock text={current.question} />
@@ -257,6 +274,7 @@ export function PracticePanel() {
                 }
                 questionFormulas={current.formulasNeeded}
                 category={current.category}
+                onValidationChange={setCanProceed}
               />
             </div>
 
