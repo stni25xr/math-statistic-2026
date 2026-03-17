@@ -22,8 +22,7 @@ export function StepByStepSolution({
           Use this structure
         </p>
         <p className="mt-1 text-sm text-blue-900 dark:text-blue-100">
-          Let/define symbols → Given values → Formula needed → Substitute
-          numbers → Compute → Final answer.
+          {"Let/define symbols -> Given -> Formula -> Substitute -> Compute -> Answer"}
         </p>
       </div>
 

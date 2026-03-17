@@ -23,13 +23,19 @@ interface ParameterEntry {
   value: string;
 }
 
+interface PartEntry {
+  key: string;
+  label: string;
+  body: string;
+}
+
 interface DraftState {
-  attempt: string;
-  sumLine: string;
-  partAttempts: Record<string, string>;
-  partSums: Record<string, string>;
+  letDefine: string;
   parameters: ParameterEntry[];
-  selectedFormulas: string[];
+  selectedFormula: string;
+  substituteByPart: Record<string, string>;
+  computeByPart: Record<string, string>;
+  answerByPart: Record<string, string>;
 }
 
 type ReferencePanel = "calculator" | "formulas" | "table";
@@ -53,7 +59,6 @@ const quickSymbols: Array<{ label: string; token: string }> = [
   { label: "+/-", token: " +/- " },
   { label: "sqrt()", token: "sqrt()" },
   { label: "^2", token: "^2" },
-  { label: "^3", token: "^3" },
   { label: "xbar", token: "x_bar" },
   { label: "phat", token: "p_hat" },
   { label: "H0", token: "H0" },
@@ -77,6 +82,14 @@ const calculatorRows = [
 const parameterTokenRegex =
   /\b(mu0|mu|sigma|lambda|theta|p_hat|p|q|n|m|s|x_bar)\b/gi;
 
+const fallbackFormulaDistractors = [
+  "P(B) = sum_k P(B|A_k) P(A_k)",
+  "Z = (X - mu)/sigma",
+  "P(N(t)=k) = exp(-lambda t) * (lambda t)^k / k!",
+  "p_hat +/- z * sqrt(p_hat(1-p_hat)/n)",
+  "T = (X_bar - mu0)/(s/sqrt(n))",
+];
+
 function createId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -92,28 +105,25 @@ function emptyParameters(): ParameterEntry[] {
   return [{ id: createId(), name: "", value: "" }];
 }
 
+function emptyDraft(): DraftState {
+  return {
+    letDefine: "",
+    parameters: emptyParameters(),
+    selectedFormula: "",
+    substituteByPart: {},
+    computeByPart: {},
+    answerByPart: {},
+  };
+}
+
 function loadDraft(questionId: string): DraftState {
   if (typeof window === "undefined") {
-    return {
-      attempt: "",
-      sumLine: "",
-      partAttempts: {},
-      partSums: {},
-      parameters: emptyParameters(),
-      selectedFormulas: [],
-    };
+    return emptyDraft();
   }
 
   const raw = localStorage.getItem(storageKey(questionId));
   if (!raw) {
-    return {
-      attempt: "",
-      sumLine: "",
-      partAttempts: {},
-      partSums: {},
-      parameters: emptyParameters(),
-      selectedFormulas: [],
-    };
+    return emptyDraft();
   }
 
   try {
@@ -128,24 +138,15 @@ function loadDraft(questionId: string): DraftState {
         : emptyParameters();
 
     return {
-      attempt: parsed.attempt ?? "",
-      sumLine: parsed.sumLine ?? "",
-      partAttempts: parsed.partAttempts ?? {},
-      partSums: parsed.partSums ?? {},
+      letDefine: parsed.letDefine ?? "",
       parameters,
-      selectedFormulas: Array.isArray(parsed.selectedFormulas)
-        ? parsed.selectedFormulas
-        : [],
+      selectedFormula: parsed.selectedFormula ?? "",
+      substituteByPart: parsed.substituteByPart ?? {},
+      computeByPart: parsed.computeByPart ?? {},
+      answerByPart: parsed.answerByPart ?? {},
     };
   } catch {
-    return {
-      attempt: "",
-      sumLine: "",
-      partAttempts: {},
-      partSums: {},
-      parameters: emptyParameters(),
-      selectedFormulas: [],
-    };
+    return emptyDraft();
   }
 }
 
@@ -165,6 +166,38 @@ function extractRequiredParameters(questionFormulas: string[]): string[] {
 
   parameterTokenRegex.lastIndex = 0;
   return Array.from(found);
+}
+
+function buildFormulaChoices(
+  moduleFormulas: string[],
+  questionFormulas: string[],
+): { choices: string[]; correct: string } {
+  const correct = questionFormulas[0] ?? moduleFormulas[0] ?? "Z = (X - mu)/sigma";
+
+  const distractorPool = [
+    ...moduleFormulas.filter((formula) => formula !== correct && !questionFormulas.includes(formula)),
+    ...questionFormulas.filter((formula) => formula !== correct),
+    ...fallbackFormulaDistractors.filter((formula) => formula !== correct),
+  ];
+
+  const uniqueDistractors: string[] = [];
+  for (const item of distractorPool) {
+    if (!uniqueDistractors.includes(item)) {
+      uniqueDistractors.push(item);
+    }
+    if (uniqueDistractors.length === 2) {
+      break;
+    }
+  }
+
+  while (uniqueDistractors.length < 2) {
+    uniqueDistractors.push(`Alternative formula ${uniqueDistractors.length + 1}`);
+  }
+
+  return {
+    choices: [correct, ...uniqueDistractors],
+    correct,
+  };
 }
 
 function evaluateExpression(expression: string, ansValue: string): string {
@@ -252,24 +285,44 @@ export function AnswerWorkspace({
   onValidationChange,
 }: AnswerWorkspaceProps) {
   const parsedQuestion = useMemo(() => parseQuestionParts(questionText), [questionText]);
+
+  const partEntries = useMemo<PartEntry[]>(() => {
+    if (parsedQuestion.parts.length > 0) {
+      return parsedQuestion.parts.map((part) => ({
+        key: part.key,
+        label: part.label,
+        body: part.body,
+      }));
+    }
+
+    return [
+      {
+        key: "single",
+        label: "Question",
+        body: questionText,
+      },
+    ];
+  }, [parsedQuestion.parts, questionText]);
+
   const hasSubparts = parsedQuestion.parts.length > 0;
 
-  const initialDraft = loadDraft(questionId);
-  const [attempt, setAttempt] = useState(initialDraft.attempt);
-  const [sumLine, setSumLine] = useState(initialDraft.sumLine);
-  const [partAttempts, setPartAttempts] = useState<Record<string, string>>(
-    initialDraft.partAttempts,
+  const draft = loadDraft(questionId);
+  const [letDefine, setLetDefine] = useState(draft.letDefine);
+  const [parameters, setParameters] = useState<ParameterEntry[]>(draft.parameters);
+  const [selectedFormula, setSelectedFormula] = useState(draft.selectedFormula);
+  const [substituteByPart, setSubstituteByPart] = useState<Record<string, string>>(
+    draft.substituteByPart,
   );
-  const [partSums, setPartSums] = useState<Record<string, string>>(initialDraft.partSums);
-  const [parameters, setParameters] = useState<ParameterEntry[]>(
-    initialDraft.parameters,
+  const [computeByPart, setComputeByPart] = useState<Record<string, string>>(
+    draft.computeByPart,
   );
-  const [selectedFormulas, setSelectedFormulas] = useState<string[]>(
-    initialDraft.selectedFormulas,
+  const [answerByPart, setAnswerByPart] = useState<Record<string, string>>(
+    draft.answerByPart,
   );
 
   const [panel, setPanel] = useState<ReferencePanel>("calculator");
   const [formulaMenuOpen, setFormulaMenuOpen] = useState(false);
+  const [activeFieldKey, setActiveFieldKey] = useState<string>("let");
 
   const [calcInput, setCalcInput] = useState("");
   const [calcResult, setCalcResult] = useState("");
@@ -277,30 +330,22 @@ export function AnswerWorkspace({
 
   const [setupStatus, setSetupStatus] = useState<"idle" | "pass" | "fail">("idle");
   const [setupMessage, setSetupMessage] = useState("");
-  const [activeFieldKey, setActiveFieldKey] = useState<string>("attempt");
 
-  const inputRefs = useRef<
-    Record<string, HTMLTextAreaElement | HTMLInputElement | null>
-  >({});
+  const inputRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>(
+    {},
+  );
 
   const requiredParameters = useMemo(
     () => extractRequiredParameters(questionFormulas),
     [questionFormulas],
   );
 
-  const formulaOptions = useMemo(() => {
-    const set = new Set<string>([...moduleFormulas, ...questionFormulas]);
-    return Array.from(set);
-  }, [moduleFormulas, questionFormulas]);
+  const { choices: formulaChoices, correct: correctFormula } = useMemo(
+    () => buildFormulaChoices(moduleFormulas, questionFormulas),
+    [moduleFormulas, questionFormulas],
+  );
 
   const table = getReferenceTable(category);
-
-  const requiredFormulaSet = new Set(questionFormulas);
-  const selectedSet = new Set(selectedFormulas);
-  const missingFormulas = questionFormulas.filter((formula) => !selectedSet.has(formula));
-  const extraFormulas = selectedFormulas.filter(
-    (formula) => !requiredFormulaSet.has(formula),
-  );
 
   const filledParameters = parameters
     .filter((entry) => entry.name.trim() && entry.value.trim())
@@ -309,42 +354,41 @@ export function AnswerWorkspace({
   const missingParams = requiredParameters.filter((item) => !filledSet.has(item));
   const hasParam = filledSet.size > 0;
 
-  const missingPartAttempts = hasSubparts
-    ? parsedQuestion.parts.filter(
-        (part) => (partAttempts[part.key] ?? "").trim().length < 10,
-      )
-    : [];
+  const missingSubstitute = partEntries.filter(
+    (part) => (substituteByPart[part.key] ?? "").trim().length < 6,
+  );
+  const missingCompute = partEntries.filter(
+    (part) => (computeByPart[part.key] ?? "").trim().length < 4,
+  );
+  const missingAnswer = partEntries.filter(
+    (part) => (answerByPart[part.key] ?? "").trim().length === 0,
+  );
 
-  const missingPartSums = hasSubparts
-    ? parsedQuestion.parts.filter((part) => (partSums[part.key] ?? "").trim().length === 0)
-    : [];
-
-  const step2Ok =
-    missingFormulas.length === 0 &&
-    extraFormulas.length === 0 &&
-    selectedSet.size === requiredFormulaSet.size;
-  const step3Ok = step2Ok && hasParam && missingParams.length === 0;
-  const step4Ok = step3Ok && (hasSubparts ? missingPartAttempts.length === 0 : attempt.trim().length >= 20);
-  const step5Ok = step4Ok && (hasSubparts ? missingPartSums.length === 0 : sumLine.trim().length > 0);
+  const step1Ok = letDefine.trim().length > 0;
+  const step2Ok = step1Ok && hasParam && missingParams.length === 0;
+  const step3Ok = step2Ok && selectedFormula === correctFormula;
+  const step4Ok = step3Ok && missingSubstitute.length === 0;
+  const step5Ok = step4Ok && missingCompute.length === 0;
+  const step6Ok = step5Ok && missingAnswer.length === 0;
 
   useEffect(() => {
     const payload: DraftState = {
-      attempt,
-      sumLine,
-      partAttempts,
-      partSums,
+      letDefine,
       parameters,
-      selectedFormulas,
+      selectedFormula,
+      substituteByPart,
+      computeByPart,
+      answerByPart,
     };
     localStorage.setItem(storageKey(questionId), JSON.stringify(payload));
   }, [
-    attempt,
-    sumLine,
-    partAttempts,
-    partSums,
+    answerByPart,
+    computeByPart,
+    letDefine,
     parameters,
     questionId,
-    selectedFormulas,
+    selectedFormula,
+    substituteByPart,
   ]);
 
   useEffect(() => {
@@ -361,65 +405,87 @@ export function AnswerWorkspace({
     }
   };
 
-  const registerInputRef = (fieldKey: string) => {
-    return (el: HTMLTextAreaElement | HTMLInputElement | null) => {
-      inputRefs.current[fieldKey] = el;
+  const registerInputRef = (key: string) => {
+    return (el: HTMLInputElement | HTMLTextAreaElement | null) => {
+      inputRefs.current[key] = el;
     };
   };
 
+  const insertWithCursor = (
+    currentValue: string,
+    setter: (value: string) => void,
+    inputKey: string,
+    token: string,
+  ) => {
+    const el = inputRefs.current[inputKey];
+    if (!el) {
+      setter(`${currentValue}${token}`);
+      return;
+    }
+
+    const start = el.selectionStart ?? currentValue.length;
+    const end = el.selectionEnd ?? currentValue.length;
+    const nextValue = `${currentValue.slice(0, start)}${token}${currentValue.slice(end)}`;
+
+    setter(nextValue);
+
+    const cursor = start + token.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(cursor, cursor);
+    });
+  };
+
   const insertAtCursor = (token: string) => {
-    let targetKey = activeFieldKey;
-    if (hasSubparts && !targetKey.startsWith("part-")) {
-      const firstKey = parsedQuestion.parts[0]?.key;
-      if (firstKey) {
-        targetKey = `part-attempt-${firstKey}`;
-      }
-    }
+    const key = activeFieldKey;
 
-    const targetEl = inputRefs.current[targetKey];
-
-    const updateText = (
-      currentValue: string,
-      setter: (next: string) => void,
-      fallbackLength: number,
-    ) => {
-      const start = targetEl?.selectionStart ?? fallbackLength;
-      const end = targetEl?.selectionEnd ?? fallbackLength;
-      const nextValue = `${currentValue.slice(0, start)}${token}${currentValue.slice(end)}`;
-
-      setter(nextValue);
+    if (key === "let") {
+      insertWithCursor(letDefine, setLetDefine, key, token);
       resetValidation();
-
-      const cursor = start + token.length;
-      requestAnimationFrame(() => {
-        if (!targetEl) {
-          return;
-        }
-        targetEl.focus();
-        targetEl.setSelectionRange(cursor, cursor);
-      });
-    };
-
-    if (targetKey.startsWith("part-attempt-")) {
-      const key = targetKey.replace("part-attempt-", "");
-      const current = partAttempts[key] ?? "";
-      updateText(current, (next) => setPartAttempts((previous) => ({ ...previous, [key]: next })), current.length);
       return;
     }
 
-    if (targetKey.startsWith("part-sum-")) {
-      const key = targetKey.replace("part-sum-", "");
-      const current = partSums[key] ?? "";
-      updateText(current, (next) => setPartSums((previous) => ({ ...previous, [key]: next })), current.length);
+    if (key.startsWith("substitute-")) {
+      const partKey = key.replace("substitute-", "");
+      const current = substituteByPart[partKey] ?? "";
+      insertWithCursor(
+        current,
+        (value) => setSubstituteByPart((previous) => ({ ...previous, [partKey]: value })),
+        key,
+        token,
+      );
+      resetValidation();
       return;
     }
 
-    if (targetKey === "sum") {
-      updateText(sumLine, setSumLine, sumLine.length);
+    if (key.startsWith("compute-")) {
+      const partKey = key.replace("compute-", "");
+      const current = computeByPart[partKey] ?? "";
+      insertWithCursor(
+        current,
+        (value) => setComputeByPart((previous) => ({ ...previous, [partKey]: value })),
+        key,
+        token,
+      );
+      resetValidation();
       return;
     }
 
-    updateText(attempt, setAttempt, attempt.length);
+    if (key.startsWith("answer-")) {
+      const partKey = key.replace("answer-", "");
+      const current = answerByPart[partKey] ?? "";
+      insertWithCursor(
+        current,
+        (value) => setAnswerByPart((previous) => ({ ...previous, [partKey]: value })),
+        key,
+        token,
+      );
+      resetValidation();
+      return;
+    }
+
+    insertWithCursor(letDefine, setLetDefine, "let", token);
+    resetValidation();
   };
 
   const updateParameter = (id: string, field: "name" | "value", value: string) => {
@@ -442,53 +508,40 @@ export function AnswerWorkspace({
     resetValidation();
   };
 
-  const toggleFormula = (formula: string) => {
-    setSelectedFormulas((previous) => {
-      const exists = previous.includes(formula);
-      if (exists) {
-        return previous.filter((item) => item !== formula);
-      }
-      return [...previous, formula];
-    });
-    resetValidation();
-  };
-
   const checkLearningSteps = () => {
-    if (step2Ok && step3Ok && step4Ok && step5Ok) {
+    if (step1Ok && step2Ok && step3Ok && step4Ok && step5Ok && step6Ok) {
       setSetupStatus("pass");
-      setSetupMessage(
-        "All 5 learning steps are correct. You can proceed to the next question.",
-      );
+      setSetupMessage("All steps are correct. You can proceed to the next question.");
       return;
     }
 
     const reasons: string[] = [];
+    if (!step1Ok) {
+      reasons.push("Let/define symbols: fill this section.");
+    }
     if (!step2Ok) {
-      reasons.push("Step 2: choose only the correct formulas.");
+      if (!hasParam) {
+        reasons.push("Given: add at least one parameter.");
+      }
+      if (missingParams.length > 0) {
+        reasons.push(`Given: missing parameters ${missingParams.join(", ")}.`);
+      }
     }
-    if (!hasParam) {
-      reasons.push("Step 3: add at least one parameter.");
-    }
-    if (missingParams.length > 0) {
-      reasons.push(`Step 3: missing parameters ${missingParams.join(", ")}.`);
+    if (!step3Ok) {
+      reasons.push("Formula: choose the correct formula from the 3 options.");
     }
     if (!step4Ok) {
-      if (hasSubparts && missingPartAttempts.length > 0) {
-        reasons.push(
-          `Step 4: complete each sub-question (${missingPartAttempts.map((part) => part.label).join(", ")}).`,
-        );
-      } else {
-        reasons.push("Step 4: write your full setup/answer with formula and parameters.");
-      }
+      reasons.push(
+        `Substitute: complete ${missingSubstitute.map((item) => item.label).join(", ")}.`,
+      );
     }
     if (!step5Ok) {
-      if (hasSubparts && missingPartSums.length > 0) {
-        reasons.push(
-          `Step 5: write a final sum/result for each sub-question (${missingPartSums.map((part) => part.label).join(", ")}).`,
-        );
-      } else {
-        reasons.push("Step 5: write the sum.");
-      }
+      reasons.push(
+        `Compute: complete ${missingCompute.map((item) => item.label).join(", ")}.`,
+      );
+    }
+    if (!step6Ok) {
+      reasons.push(`Answer: complete ${missingAnswer.map((item) => item.label).join(", ")}.`);
     }
 
     setSetupStatus("fail");
@@ -573,102 +626,59 @@ export function AnswerWorkspace({
 
   return (
     <section className="rounded-2xl border border-slate-300 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-      <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+      <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
         Learning flow
       </h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        1) Read question 2) Choose formulas 3) Define parameters 4) Write setup and
-        answer 5) Write the sum.
+      <p className="mt-1 text-base text-slate-700 dark:text-slate-200">
+        {"Let/define symbols -> Given -> Formula -> Substitute -> Compute -> Answer"}
       </p>
       {hasSubparts ? (
-        <p className="mt-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
-          This question has sub-parts. You must answer each part separately.
+        <p className="mt-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+          Answer each sub-question separately.
         </p>
       ) : null}
+
       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-        <span
-          className={`rounded-full px-2.5 py-1 ${
-            step2Ok
-              ? "bg-emerald-600 text-white"
-              : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
-          }`}
-        >
-          Step 2 {step2Ok ? "done" : "pending"}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 ${
-            step3Ok
-              ? "bg-emerald-600 text-white"
-              : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
-          }`}
-        >
-          Step 3 {step3Ok ? "done" : "pending"}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 ${
-            step4Ok
-              ? "bg-emerald-600 text-white"
-              : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
-          }`}
-        >
-          Step 4 {step4Ok ? "done" : "pending"}
-        </span>
-        <span
-          className={`rounded-full px-2.5 py-1 ${
-            step5Ok
-              ? "bg-emerald-600 text-white"
-              : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
-          }`}
-        >
-          Step 5 {step5Ok ? "done" : "pending"}
-        </span>
+        {[step1Ok, step2Ok, step3Ok, step4Ok, step5Ok, step6Ok].map((ok, idx) => (
+          <span
+            key={`step-${idx + 1}`}
+            className={`rounded-full px-2.5 py-1 ${
+              ok
+                ? "bg-emerald-600 text-white"
+                : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-100"
+            }`}
+          >
+            Step {idx + 1} {ok ? "done" : "pending"}
+          </span>
+        ))}
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
-            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-              2) Choose the formulas (multi-select)
+            <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              1) Let/define symbols
             </h4>
-            <button
-              type="button"
-              onClick={() => setFormulaMenuOpen((previous) => !previous)}
-              className="mt-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-900 dark:border-blue-700 dark:bg-slate-900 dark:text-blue-100"
-            >
-              {selectedFormulas.length} selected • Open formula dropdown
-            </button>
-            {formulaMenuOpen ? (
-              <div className="mt-2 max-h-56 overflow-auto rounded-lg border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-slate-900">
-                {formulaOptions.map((formula) => {
-                  const selected = selectedFormulas.includes(formula);
-                  return (
-                    <label
-                      key={formula}
-                      className="mb-1 flex cursor-pointer items-start gap-2 rounded-md px-2 py-1 hover:bg-blue-50 dark:hover:bg-slate-800"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={() => toggleFormula(formula)}
-                        className="mt-1"
-                      />
-                      <span className="text-sm text-slate-800 dark:text-slate-100">
-                        <MathText text={formula} />
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            ) : null}
+            <textarea
+              ref={registerInputRef("let")}
+              value={letDefine}
+              onFocus={() => setActiveFieldKey("let")}
+              onChange={(event) => {
+                setLetDefine(event.target.value);
+                resetValidation();
+              }}
+              placeholder="Example: Let D = has disease, D^c = healthy, + = positive test"
+              className="mt-2 min-h-24 w-full rounded-xl border border-blue-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-blue-700 dark:bg-slate-900 dark:text-slate-100"
+            />
           </section>
 
           <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
-            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-              3) Define the parameters
+            <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              2) Given
             </h4>
-            {!step2Ok ? (
+            {!step1Ok ? (
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Complete step 2 first.
+                Complete step 1 first.
               </p>
             ) : null}
             {requiredParameters.length > 0 ? (
@@ -682,28 +692,28 @@ export function AnswerWorkspace({
                 <div key={entry.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <input
                     value={entry.name}
-                    disabled={!step2Ok}
+                    disabled={!step1Ok}
                     onChange={(event) =>
                       updateParameter(entry.id, "name", event.target.value)
                     }
-                    placeholder="name (e.g. mu)"
+                    placeholder="name (e.g. p)"
                     className="rounded-lg border border-blue-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-blue-700 dark:bg-slate-900 dark:text-slate-100"
                   />
                   <input
                     value={entry.value}
-                    disabled={!step2Ok}
+                    disabled={!step1Ok}
                     onChange={(event) =>
                       updateParameter(entry.id, "value", event.target.value)
                     }
-                    placeholder="value (e.g. 1)"
+                    placeholder="value (e.g. 0.05)"
                     className="rounded-lg border border-blue-300 bg-white px-2 py-1.5 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-blue-700 dark:bg-slate-900 dark:text-slate-100"
                   />
                   <button
                     type="button"
-                    disabled={!step2Ok}
+                    disabled={!step1Ok}
                     onClick={() => removeParameter(entry.id)}
                     className={`rounded-lg px-2 py-1 text-xs font-semibold text-white ${
-                      step2Ok
+                      step1Ok
                         ? "bg-slate-700 hover:bg-slate-800"
                         : "cursor-not-allowed bg-slate-400"
                     }`}
@@ -716,10 +726,10 @@ export function AnswerWorkspace({
 
             <button
               type="button"
-              disabled={!step2Ok}
+              disabled={!step1Ok}
               onClick={addParameter}
               className={`mt-2 rounded-lg border px-2.5 py-1 text-xs font-semibold ${
-                step2Ok
+                step1Ok
                   ? "border-blue-400 text-blue-900 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-100 dark:hover:bg-blue-900/40"
                   : "cursor-not-allowed border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
               }`}
@@ -728,68 +738,140 @@ export function AnswerWorkspace({
             </button>
           </section>
 
-          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              4) Write the problem and answer using formulas and parameters
+          <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
+            <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+              3) Formula
             </h4>
-            <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
-              Template: Let/define symbols, Given, Formula, Substitute, Compute,
-              Answer.
-            </p>
+            {!step2Ok ? (
+              <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+                Complete step 2 first.
+              </p>
+            ) : null}
+            <button
+              type="button"
+              disabled={!step2Ok}
+              onClick={() => setFormulaMenuOpen((previous) => !previous)}
+              className={`mt-2 rounded-lg border px-3 py-2 text-sm font-semibold ${
+                step2Ok
+                  ? "border-blue-300 bg-white text-blue-900 dark:border-blue-700 dark:bg-slate-900 dark:text-blue-100"
+                  : "cursor-not-allowed border-slate-300 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
+              }`}
+            >
+              {selectedFormula ? "1 selected" : "0 selected"} • Open formula dropdown (3 options)
+            </button>
+            {formulaMenuOpen ? (
+              <div className="mt-2 rounded-lg border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-slate-900">
+                {formulaChoices.map((formula, index) => (
+                  <label
+                    key={`${formula}-${index}`}
+                    className="mb-1 flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 hover:bg-blue-50 dark:hover:bg-slate-800"
+                  >
+                    <input
+                      type="radio"
+                      name={`formula-choice-${questionId}`}
+                      checked={selectedFormula === formula}
+                      onChange={() => {
+                        setSelectedFormula(formula);
+                        resetValidation();
+                      }}
+                    />
+                    <div className="text-sm text-slate-800 dark:text-slate-100">
+                      <MathText text={formula} />
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+            <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              4) Substitute • 5) Compute • 6) Answer
+            </h4>
             {!step3Ok ? (
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
                 Complete step 3 first.
               </p>
             ) : null}
 
-            {hasSubparts ? (
-              <div className="mt-2 space-y-3">
-                {parsedQuestion.parts.map((part) => {
-                  const fieldKey = `part-attempt-${part.key}`;
-                  return (
-                    <div
-                      key={`attempt-${part.key}`}
-                      className="rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
-                    >
-                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        Answer {part.label}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                        <MathText text={part.body} />
-                      </p>
-                      <textarea
-                        ref={registerInputRef(fieldKey)}
-                        value={partAttempts[part.key] ?? ""}
-                        disabled={!step3Ok}
-                        onFocus={() => setActiveFieldKey(fieldKey)}
-                        onChange={(event) => {
-                          setPartAttempts((previous) => ({
-                            ...previous,
-                            [part.key]: event.target.value,
-                          }));
-                          resetValidation();
-                        }}
-                        placeholder={`Write full setup and answer for ${part.label}...`}
-                        className="mt-2 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <textarea
-                ref={registerInputRef("attempt")}
-                value={attempt}
-                disabled={!step3Ok}
-                onFocus={() => setActiveFieldKey("attempt")}
-                onChange={(event) => {
-                  setAttempt(event.target.value);
-                  resetValidation();
-                }}
-                placeholder="Write your full setup and answer here..."
-                className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-              />
-            )}
+            <div className="mt-2 space-y-3">
+              {partEntries.map((part) => {
+                const substituteKey = `substitute-${part.key}`;
+                const computeKey = `compute-${part.key}`;
+                const answerKey = `answer-${part.key}`;
+
+                return (
+                  <div
+                    key={part.key}
+                    className="rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                  >
+                    <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      {hasSubparts ? `Sub-question ${part.label}` : "Question"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                      <MathText text={part.body} />
+                    </p>
+
+                    <label className="mt-2 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Substitute
+                    </label>
+                    <textarea
+                      ref={registerInputRef(substituteKey)}
+                      value={substituteByPart[part.key] ?? ""}
+                      disabled={!step3Ok}
+                      onFocus={() => setActiveFieldKey(substituteKey)}
+                      onChange={(event) => {
+                        setSubstituteByPart((previous) => ({
+                          ...previous,
+                          [part.key]: event.target.value,
+                        }));
+                        resetValidation();
+                      }}
+                      placeholder="Substitute numbers into the selected formula"
+                      className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    />
+
+                    <label className="mt-2 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Compute
+                    </label>
+                    <textarea
+                      ref={registerInputRef(computeKey)}
+                      value={computeByPart[part.key] ?? ""}
+                      disabled={!step4Ok}
+                      onFocus={() => setActiveFieldKey(computeKey)}
+                      onChange={(event) => {
+                        setComputeByPart((previous) => ({
+                          ...previous,
+                          [part.key]: event.target.value,
+                        }));
+                        resetValidation();
+                      }}
+                      placeholder="Show your arithmetic/statistical computation"
+                      className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    />
+
+                    <label className="mt-2 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+                      Answer
+                    </label>
+                    <input
+                      ref={registerInputRef(answerKey)}
+                      value={answerByPart[part.key] ?? ""}
+                      disabled={!step5Ok}
+                      onFocus={() => setActiveFieldKey(answerKey)}
+                      onChange={(event) => {
+                        setAnswerByPart((previous) => ({
+                          ...previous,
+                          [part.key]: event.target.value,
+                        }));
+                        resetValidation();
+                      }}
+                      placeholder="Final result"
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -813,63 +895,6 @@ export function AnswerWorkspace({
                 ))}
               </div>
             </div>
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              5) Write the sum
-            </h4>
-            {!step4Ok ? (
-              <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
-                Complete step 4 first.
-              </p>
-            ) : null}
-
-            {hasSubparts ? (
-              <div className="mt-2 space-y-2">
-                {parsedQuestion.parts.map((part) => {
-                  const fieldKey = `part-sum-${part.key}`;
-                  return (
-                    <div
-                      key={`sum-${part.key}`}
-                      className="rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
-                    >
-                      <label className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        Final sum/result {part.label}
-                      </label>
-                      <input
-                        ref={registerInputRef(fieldKey)}
-                        value={partSums[part.key] ?? ""}
-                        disabled={!step4Ok}
-                        onFocus={() => setActiveFieldKey(fieldKey)}
-                        onChange={(event) => {
-                          setPartSums((previous) => ({
-                            ...previous,
-                            [part.key]: event.target.value,
-                          }));
-                          resetValidation();
-                        }}
-                        placeholder={`Write final line for ${part.label}`}
-                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <input
-                ref={registerInputRef("sum")}
-                value={sumLine}
-                disabled={!step4Ok}
-                onFocus={() => setActiveFieldKey("sum")}
-                onChange={(event) => {
-                  setSumLine(event.target.value);
-                  resetValidation();
-                }}
-                placeholder="Example: 0.16 + 0.69 + 0 = 0.85"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-              />
-            )}
           </section>
 
           <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/25">
@@ -1032,8 +1057,7 @@ export function AnswerWorkspace({
                 </>
               ) : (
                 <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
-                  No lookup table is needed for this module. Use formulas and
-                  direct setup instead.
+                  No lookup table is needed for this module. Use formulas and direct setup instead.
                 </div>
               )}
             </div>
