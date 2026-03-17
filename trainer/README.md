@@ -42,6 +42,15 @@ npm run dev
 
 Then open [http://localhost:3000](http://localhost:3000).
 
+## Public deployment (GitHub Pages)
+
+This app is configured for static export and auto-deploy through:
+
+- [`/.github/workflows/deploy-pages.yml`](/Users/nicolas_stpierre/Documents/Math statistic 2026/.github/workflows/deploy-pages.yml)
+- Public URL target: [https://stni25xr.github.io/math-statistic-2026/](https://stni25xr.github.io/math-statistic-2026/)
+
+`NEXT_BASE_PATH` is set in the workflow to `/math-statistic-2026` so links work on Pages.
+
 ## Project structure
 
 ```text
