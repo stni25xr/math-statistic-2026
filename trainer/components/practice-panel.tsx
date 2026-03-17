@@ -265,10 +265,6 @@ export function PracticePanel() {
                   categoryDefinitions.find((c) => c.slug === current.category)?.title ??
                   current.category
                 }
-                moduleFormulas={
-                  categoryDefinitions.find((c) => c.slug === current.category)
-                    ?.keyFormulas ?? current.formulasNeeded
-                }
                 questionFormulas={current.formulasNeeded}
                 onValidationChange={setCanProceed}
               />

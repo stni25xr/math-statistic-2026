@@ -190,7 +190,6 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             questionId={question.id}
             questionText={question.question}
             moduleName={category?.title ?? question.category}
-            moduleFormulas={category?.keyFormulas ?? question.formulasNeeded}
             questionFormulas={question.formulasNeeded}
           />
         </div>

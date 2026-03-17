@@ -10,7 +10,6 @@ interface AnswerWorkspaceProps {
   questionId: string;
   questionText: string;
   moduleName: string;
-  moduleFormulas: string[];
   questionFormulas: string[];
   onValidationChange?: (isValid: boolean) => void;
 }
@@ -22,9 +21,7 @@ interface PartEntry {
 }
 
 interface DraftState {
-  letDefine: string;
   givenValues: Record<string, string>;
-  selectedFormula: string;
   substituteByPart: Record<string, string>;
   computeByPart: Record<string, string>;
   answerByPart: Record<string, string>;
@@ -50,23 +47,13 @@ const quickTokens: Array<{ label: string; token: string }> = [
 const parameterTokenRegex =
   /\b(mu0|mu|sigma|lambda|theta|p_hat|p|q|n|m|s|x_bar)\b/gi;
 
-const fallbackFormulaDistractors = [
-  "P(B) = sum_k P(B|A_k) P(A_k)",
-  "Z = (X - mu)/sigma",
-  "P(N(t)=k) = exp(-lambda t) * (lambda t)^k / k!",
-  "p_hat +/- z * sqrt(p_hat(1-p_hat)/n)",
-  "T = (X_bar - mu0)/(s/sqrt(n))",
-];
-
 function storageKey(questionId: string): string {
   return `math-stat-2026-fillgap-${questionId}`;
 }
 
 function emptyDraft(): DraftState {
   return {
-    letDefine: "",
     givenValues: {},
-    selectedFormula: "",
     substituteByPart: {},
     computeByPart: {},
     answerByPart: {},
@@ -87,9 +74,7 @@ function loadDraft(questionId: string): DraftState {
   try {
     const parsed = JSON.parse(raw) as DraftState;
     return {
-      letDefine: parsed.letDefine ?? "",
       givenValues: parsed.givenValues ?? {},
-      selectedFormula: parsed.selectedFormula ?? "",
       substituteByPart: parsed.substituteByPart ?? {},
       computeByPart: parsed.computeByPart ?? {},
       answerByPart: parsed.answerByPart ?? {},
@@ -118,43 +103,10 @@ function extractRequiredParameters(questionFormulas: string[]): string[] {
   return Array.from(found);
 }
 
-function buildFormulaChoices(
-  moduleFormulas: string[],
-  questionFormulas: string[],
-): { choices: string[]; correct: string } {
-  const correct = questionFormulas[0] ?? moduleFormulas[0] ?? "Z = (X - mu)/sigma";
-
-  const distractorPool = [
-    ...moduleFormulas.filter((formula) => formula !== correct),
-    ...questionFormulas.filter((formula) => formula !== correct),
-    ...fallbackFormulaDistractors.filter((formula) => formula !== correct),
-  ];
-
-  const uniqueDistractors: string[] = [];
-  for (const item of distractorPool) {
-    if (!uniqueDistractors.includes(item)) {
-      uniqueDistractors.push(item);
-    }
-    if (uniqueDistractors.length === 2) {
-      break;
-    }
-  }
-
-  while (uniqueDistractors.length < 2) {
-    uniqueDistractors.push(`Alternative formula ${uniqueDistractors.length + 1}`);
-  }
-
-  return {
-    choices: [correct, ...uniqueDistractors],
-    correct,
-  };
-}
-
 export function AnswerWorkspace({
   questionId,
   questionText,
   moduleName,
-  moduleFormulas,
   questionFormulas,
   onValidationChange,
 }: AnswerWorkspaceProps) {
@@ -183,16 +135,10 @@ export function AnswerWorkspace({
     () => extractRequiredParameters(questionFormulas),
     [questionFormulas],
   );
-
-  const { choices: formulaChoices, correct: correctFormula } = useMemo(
-    () => buildFormulaChoices(moduleFormulas, questionFormulas),
-    [moduleFormulas, questionFormulas],
-  );
+  const mainFormula = questionFormulas[0] ?? "Z = (X - mu)/sigma";
 
   const draft = loadDraft(questionId);
-  const [letDefine, setLetDefine] = useState(draft.letDefine);
   const [givenValues, setGivenValues] = useState<Record<string, string>>(draft.givenValues);
-  const [selectedFormula, setSelectedFormula] = useState(draft.selectedFormula);
   const [substituteByPart, setSubstituteByPart] = useState<Record<string, string>>(
     draft.substituteByPart,
   );
@@ -204,10 +150,9 @@ export function AnswerWorkspace({
   );
   const [genericGiven, setGenericGiven] = useState(draft.genericGiven);
 
-  const [formulaMenuOpen, setFormulaMenuOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "pass" | "fail">("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const [activeField, setActiveField] = useState<string>("let");
+  const [activeField, setActiveField] = useState<string>("generic-given");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>(
     {},
@@ -215,9 +160,7 @@ export function AnswerWorkspace({
 
   useEffect(() => {
     const payload: DraftState = {
-      letDefine,
       givenValues,
-      selectedFormula,
       substituteByPart,
       computeByPart,
       answerByPart,
@@ -230,9 +173,7 @@ export function AnswerWorkspace({
     computeByPart,
     genericGiven,
     givenValues,
-    letDefine,
     questionId,
-    selectedFormula,
     substituteByPart,
   ]);
 
@@ -282,12 +223,6 @@ export function AnswerWorkspace({
         target.setSelectionRange(cursor, cursor);
       });
     };
-
-    if (key === "let") {
-      spliceValue(letDefine, setLetDefine, "let");
-      resetStatus();
-      return;
-    }
 
     if (key === "generic-given") {
       spliceValue(genericGiven, setGenericGiven, "generic-given");
@@ -355,7 +290,7 @@ export function AnswerWorkspace({
       return;
     }
 
-    spliceValue(letDefine, setLetDefine, "let");
+    spliceValue(genericGiven, setGenericGiven, "generic-given");
     resetStatus();
   };
 
@@ -377,20 +312,12 @@ export function AnswerWorkspace({
   const checkFillGaps = () => {
     const issues: string[] = [];
 
-    if (!letDefine.trim()) {
-      issues.push("Fill Let/define symbols.");
-    }
-
     if (missingGiven.length > 0) {
       if (requiredParameters.length > 0) {
         issues.push(`Fill Given values: ${missingGiven.join(", ")}.`);
       } else {
         issues.push("Fill Given values.");
       }
-    }
-
-    if (selectedFormula !== correctFormula) {
-      issues.push("Choose the correct formula.");
     }
 
     if (missingSubstitute.length > 0) {
@@ -421,7 +348,7 @@ export function AnswerWorkspace({
         Fill-the-gap trainer
       </h3>
       <p className="mt-1 text-base text-slate-700 dark:text-slate-200">
-        {"Let/define symbols -> Given -> Formula -> Substitute -> Compute -> Answer"}
+        {"Given -> Substitute -> Compute -> Answer"}
       </p>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
@@ -429,59 +356,8 @@ export function AnswerWorkspace({
           Formula needed ({moduleName})
         </p>
         <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
-          <BlockFormula latex={normalizeLatex(correctFormula)} />
+          <BlockFormula latex={normalizeLatex(mainFormula)} />
         </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/30">
-        <p className="text-base font-semibold text-blue-900 dark:text-blue-100">
-          Choose formula (3 options)
-        </p>
-        <button
-          type="button"
-          onClick={() => setFormulaMenuOpen((previous) => !previous)}
-          className="mt-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-semibold text-blue-900 dark:border-blue-700 dark:bg-slate-900 dark:text-blue-100"
-        >
-          {selectedFormula ? "1 selected" : "0 selected"} • Open dropdown
-        </button>
-        {formulaMenuOpen ? (
-          <div className="mt-2 rounded-lg border border-blue-200 bg-white p-2 dark:border-blue-800 dark:bg-slate-900">
-            {formulaChoices.map((formula, index) => (
-              <label
-                key={`${formula}-${index}`}
-                className="mb-1 flex cursor-pointer items-start gap-2 rounded-md px-2 py-2 hover:bg-blue-50 dark:hover:bg-slate-800"
-              >
-                <input
-                  type="radio"
-                  name={`formula-choice-${questionId}`}
-                  checked={selectedFormula === formula}
-                  onChange={() => {
-                    setSelectedFormula(formula);
-                    resetStatus();
-                  }}
-                />
-                <div className="text-sm text-slate-800 dark:text-slate-100">
-                  <MathText text={formula} />
-                </div>
-              </label>
-            ))}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
-        <p className="text-base font-semibold text-slate-900 dark:text-slate-100">Let/define symbols</p>
-        <textarea
-          ref={setFieldRef("let")}
-          value={letDefine}
-          onFocus={() => setActiveField("let")}
-          onChange={(event) => {
-            setLetDefine(event.target.value);
-            resetStatus();
-          }}
-          placeholder="Example: Let D = diseased, D^c = healthy, + = positive"
-          className="mt-2 min-h-20 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-        />
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
