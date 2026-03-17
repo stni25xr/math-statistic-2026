@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnswerWorkspace } from "@/components/answer-workspace";
 import { CommonMistakeAlert } from "@/components/common-mistake-alert";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
+import { MathText } from "@/components/math-text";
 import { QuizModePanel } from "@/components/quiz-mode-panel";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
@@ -162,12 +164,12 @@ export function PracticePanel() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8">
-      <header className="rounded-3xl border border-slate-200 bg-white/90 p-6 dark:border-slate-700 dark:bg-slate-900/90">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+    <main className="mx-auto w-full max-w-7xl px-4 py-8">
+      <header className="rounded-3xl border border-slate-200 bg-white/90 p-7 dark:border-slate-700 dark:bg-slate-900/90">
+        <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Practice mode
         </h1>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-base text-slate-600 dark:text-slate-300">
           Random practice by category or mixed mode. Reveal answers only after your
           attempt. Keyboard shortcuts: N next, R reveal, 1/2/3 self-rating,
           C complete, F flag review.
@@ -187,13 +189,13 @@ export function PracticePanel() {
         />
 
         {started && current ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Session progress {progressLabel}
                 </p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">
+                <h2 className="mt-1 text-4xl font-semibold text-slate-900 dark:text-slate-100">
                   {current.title}
                 </h2>
               </div>
@@ -201,7 +203,7 @@ export function PracticePanel() {
               <div className="flex items-center gap-2">
                 {timedMode && timeLeft !== null ? (
                   <span
-                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+                  className={`rounded-lg px-3 py-1.5 text-base font-semibold ${
                       timeLeft <= 60
                         ? "bg-rose-600 text-white"
                         : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-100"
@@ -213,15 +215,15 @@ export function PracticePanel() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-base font-semibold text-white hover:bg-blue-700"
                 >
                   Next question
                 </button>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              {current.question}
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-lg leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+              <MathText text={current.question} />
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -239,6 +241,10 @@ export function PracticePanel() {
                   {tag}
                 </span>
               ))}
+            </div>
+
+            <div className="mt-5">
+              <AnswerWorkspace key={current.id} questionId={current.id} />
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">

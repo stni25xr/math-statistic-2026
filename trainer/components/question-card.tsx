@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { StudyQuestion } from "@/lib/types";
 import { useProgress } from "@/components/progress-provider";
+import { MathText } from "@/components/math-text";
 
 interface QuestionCardProps {
   question: StudyQuestion;
@@ -21,10 +22,10 @@ export function QuestionCard({
   const isReview = progress.review.includes(question.id);
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
             {question.title}
           </h3>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -36,7 +37,9 @@ export function QuestionCard({
         </span>
       </div>
 
-      <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">{question.question}</p>
+      <div className="mt-3 text-base text-slate-700 dark:text-slate-300">
+        <MathText text={question.question} />
+      </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
         {question.tags.map((tag) => (
@@ -50,11 +53,13 @@ export function QuestionCard({
       </div>
 
       {showFormulas ? (
-        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           <p className="font-semibold">Formulas needed</p>
           <ul className="mt-1 list-disc space-y-1 pl-4">
             {question.formulasNeeded.map((formula) => (
-              <li key={formula}>{formula}</li>
+              <li key={formula}>
+                <MathText text={formula} />
+              </li>
             ))}
           </ul>
         </div>

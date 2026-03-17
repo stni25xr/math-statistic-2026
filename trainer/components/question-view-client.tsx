@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { AnswerWorkspace } from "@/components/answer-workspace";
 import { CommonMistakeAlert } from "@/components/common-mistake-alert";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
 import { FormulaBox } from "@/components/formula-box";
+import { MathText } from "@/components/math-text";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
 import { categoryDefinitions } from "@/lib/study-data";
@@ -36,7 +38,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
   const isReview = progress.review.includes(question.id);
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8">
+    <main className="mx-auto w-full max-w-7xl px-4 py-8">
       <Link
         href={`/categories/${question.category}`}
         className="text-sm text-blue-700 underline decoration-blue-300 underline-offset-2 dark:text-blue-300"
@@ -44,7 +46,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
         Back to category
       </Link>
 
-      <article className="mt-3 rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 sm:p-8">
+      <article className="mt-3 rounded-3xl border border-slate-200 bg-white/90 p-7 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 sm:p-10">
         <header>
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             <span>{category?.title ?? question.category}</span>
@@ -54,7 +56,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             <span>{question.difficulty}</span>
           </div>
 
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 sm:text-4xl">
             {question.title}
           </h1>
 
@@ -62,9 +64,9 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             Source: {question.sourceExam} · Problem {question.originalProblemNumber}
           </p>
 
-          <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            {question.question}
-          </p>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-lg leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            <MathText text={question.question} />
+          </div>
         </header>
 
         <section className="mt-5 grid gap-4 md:grid-cols-2">
@@ -72,18 +74,18 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Why this method applies
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-              {question.whyMethodApplies}
-            </p>
+            <div className="mt-2 text-base leading-relaxed text-slate-700 dark:text-slate-200">
+              <MathText text={question.whyMethodApplies} />
+            </div>
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               Pattern recognition hint
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
-              {question.patternHint}
-            </p>
+            <div className="mt-2 text-base leading-relaxed text-slate-700 dark:text-slate-200">
+              <MathText text={question.patternHint} />
+            </div>
           </div>
         </section>
 
@@ -180,6 +182,10 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             ))}
           </div>
         </section>
+
+        <div className="mt-5">
+          <AnswerWorkspace key={question.id} questionId={question.id} />
+        </div>
       </article>
     </main>
   );
