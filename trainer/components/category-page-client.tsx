@@ -20,6 +20,8 @@ export function CategoryPageClient({
   const [selectedFormula, setSelectedFormula] = useState("all");
   const [showFormulas, setShowFormulas] = useState(true);
   const [showSolutions, setShowSolutions] = useState(false);
+  const [oneAtATime, setOneAtATime] = useState(true);
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   const formulaOptions = useMemo(() => {
     const formulas = new Set<string>();
@@ -49,6 +51,12 @@ export function CategoryPageClient({
       return matchesSearch && matchesDifficulty && matchesFormula;
     });
   }, [difficulty, questions, search, selectedFormula]);
+
+  const boundedIndex =
+    filteredQuestions.length === 0
+      ? 0
+      : Math.min(questionIndex, filteredQuestions.length - 1);
+  const currentQuestion = filteredQuestions[boundedIndex];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8">
@@ -82,9 +90,18 @@ export function CategoryPageClient({
             selectedDifficulty={difficulty}
             selectedFormula={selectedFormula}
             formulaOptions={formulaOptions}
-            onSearchChange={setSearch}
-            onDifficultyChange={setDifficulty}
-            onFormulaChange={setSelectedFormula}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setQuestionIndex(0);
+            }}
+            onDifficultyChange={(value) => {
+              setDifficulty(value);
+              setQuestionIndex(0);
+            }}
+            onFormulaChange={(value) => {
+              setSelectedFormula(value);
+              setQuestionIndex(0);
+            }}
           />
 
           <div className="flex flex-wrap gap-2">
@@ -102,6 +119,15 @@ export function CategoryPageClient({
             >
               {showSolutions ? "Hide solution previews" : "Show solution previews"}
             </button>
+            <button
+              type="button"
+              onClick={() => setOneAtATime((previous) => !previous)}
+              className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+            >
+              {oneAtATime
+                ? "Switch to full list"
+                : "One question at a time"}
+            </button>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
@@ -113,20 +139,62 @@ export function CategoryPageClient({
               by this method.
             </p>
             <div className="mt-4 space-y-4">
-              {filteredQuestions.map((question) => (
-                <QuestionCard
-                  key={question.id}
-                  question={question}
-                  showSolutionPreview={showSolutions}
-                  showFormulas={showFormulas}
-                />
-              ))}
               {filteredQuestions.length === 0 ? (
                 <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                   No questions match these filters. Try a wider keyword or reset
                   formula filter.
                 </p>
-              ) : null}
+              ) : oneAtATime ? (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                      Question {boundedIndex + 1} of {filteredQuestions.length}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuestionIndex(
+                            boundedIndex === 0
+                              ? filteredQuestions.length - 1
+                              : boundedIndex - 1,
+                          )
+                        }
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-700"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuestionIndex(
+                            (boundedIndex + 1) % filteredQuestions.length,
+                          )
+                        }
+                        className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                  {currentQuestion ? (
+                    <QuestionCard
+                      question={currentQuestion}
+                      showSolutionPreview={showSolutions}
+                      showFormulas={showFormulas}
+                    />
+                  ) : null}
+                </>
+              ) : (
+                filteredQuestions.map((question) => (
+                  <QuestionCard
+                    key={question.id}
+                    question={question}
+                    showSolutionPreview={showSolutions}
+                    showFormulas={showFormulas}
+                  />
+                ))
+              )}
             </div>
           </div>
         </section>
