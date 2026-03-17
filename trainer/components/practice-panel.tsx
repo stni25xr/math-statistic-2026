@@ -261,11 +261,7 @@ export function PracticePanel() {
                 key={current.id}
                 questionId={current.id}
                 questionText={current.question}
-                moduleName={
-                  categoryDefinitions.find((c) => c.slug === current.category)?.title ??
-                  current.category
-                }
-                questionFormulas={current.formulasNeeded}
+                expectedAnswer={current.finalAnswer}
                 onValidationChange={setCanProceed}
               />
             </div>

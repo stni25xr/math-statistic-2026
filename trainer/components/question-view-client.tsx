@@ -189,8 +189,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             key={question.id}
             questionId={question.id}
             questionText={question.question}
-            moduleName={category?.title ?? question.category}
-            questionFormulas={question.formulasNeeded}
+            expectedAnswer={question.finalAnswer}
           />
         </div>
       </article>
