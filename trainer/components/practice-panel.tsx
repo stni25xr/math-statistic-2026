@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnswerWorkspace } from "@/components/answer-workspace";
 import { CommonMistakeAlert } from "@/components/common-mistake-alert";
+import { ExamQuestionBlock } from "@/components/exam-question-block";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
-import { MathText } from "@/components/math-text";
 import { QuizModePanel } from "@/components/quiz-mode-panel";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
@@ -222,8 +222,8 @@ export function PracticePanel() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-lg leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-              <MathText text={current.question} />
+            <div className="mt-4">
+              <ExamQuestionBlock text={current.question} />
             </div>
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">

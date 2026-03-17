@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AnswerWorkspace } from "@/components/answer-workspace";
 import { CommonMistakeAlert } from "@/components/common-mistake-alert";
+import { ExamQuestionBlock } from "@/components/exam-question-block";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
 import { FormulaBox } from "@/components/formula-box";
 import { MathText } from "@/components/math-text";
@@ -64,8 +65,8 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             Source: {question.sourceExam} · Problem {question.originalProblemNumber}
           </p>
 
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 text-lg leading-relaxed text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            <MathText text={question.question} />
+          <div className="mt-4">
+            <ExamQuestionBlock text={question.question} />
           </div>
         </header>
 
