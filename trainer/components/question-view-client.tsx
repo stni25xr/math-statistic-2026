@@ -188,6 +188,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
           <AnswerWorkspace
             key={question.id}
             questionId={question.id}
+            questionText={question.question}
             moduleName={category?.title ?? question.category}
             moduleFormulas={category?.keyFormulas ?? question.formulasNeeded}
             questionFormulas={question.formulasNeeded}

@@ -4,10 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BlockFormula } from "@/components/math-formula";
 import { MathText } from "@/components/math-text";
 import { normalizeLatex } from "@/lib/math-format";
+import { parseQuestionParts } from "@/lib/question-parts";
 import { CategorySlug } from "@/lib/types";
 
 interface AnswerWorkspaceProps {
   questionId: string;
+  questionText: string;
   moduleName: string;
   moduleFormulas: string[];
   questionFormulas: string[];
@@ -24,6 +26,8 @@ interface ParameterEntry {
 interface DraftState {
   attempt: string;
   sumLine: string;
+  partAttempts: Record<string, string>;
+  partSums: Record<string, string>;
   parameters: ParameterEntry[];
   selectedFormulas: string[];
 }
@@ -93,6 +97,8 @@ function loadDraft(questionId: string): DraftState {
     return {
       attempt: "",
       sumLine: "",
+      partAttempts: {},
+      partSums: {},
       parameters: emptyParameters(),
       selectedFormulas: [],
     };
@@ -103,6 +109,8 @@ function loadDraft(questionId: string): DraftState {
     return {
       attempt: "",
       sumLine: "",
+      partAttempts: {},
+      partSums: {},
       parameters: emptyParameters(),
       selectedFormulas: [],
     };
@@ -122,6 +130,8 @@ function loadDraft(questionId: string): DraftState {
     return {
       attempt: parsed.attempt ?? "",
       sumLine: parsed.sumLine ?? "",
+      partAttempts: parsed.partAttempts ?? {},
+      partSums: parsed.partSums ?? {},
       parameters,
       selectedFormulas: Array.isArray(parsed.selectedFormulas)
         ? parsed.selectedFormulas
@@ -131,6 +141,8 @@ function loadDraft(questionId: string): DraftState {
     return {
       attempt: "",
       sumLine: "",
+      partAttempts: {},
+      partSums: {},
       parameters: emptyParameters(),
       selectedFormulas: [],
     };
@@ -232,15 +244,23 @@ function getReferenceTable(category: CategorySlug): ReferenceTable | null {
 
 export function AnswerWorkspace({
   questionId,
+  questionText,
   moduleName,
   moduleFormulas,
   questionFormulas,
   category,
   onValidationChange,
 }: AnswerWorkspaceProps) {
+  const parsedQuestion = useMemo(() => parseQuestionParts(questionText), [questionText]);
+  const hasSubparts = parsedQuestion.parts.length > 0;
+
   const initialDraft = loadDraft(questionId);
   const [attempt, setAttempt] = useState(initialDraft.attempt);
   const [sumLine, setSumLine] = useState(initialDraft.sumLine);
+  const [partAttempts, setPartAttempts] = useState<Record<string, string>>(
+    initialDraft.partAttempts,
+  );
+  const [partSums, setPartSums] = useState<Record<string, string>>(initialDraft.partSums);
   const [parameters, setParameters] = useState<ParameterEntry[]>(
     initialDraft.parameters,
   );
@@ -257,8 +277,11 @@ export function AnswerWorkspace({
 
   const [setupStatus, setSetupStatus] = useState<"idle" | "pass" | "fail">("idle");
   const [setupMessage, setSetupMessage] = useState("");
+  const [activeFieldKey, setActiveFieldKey] = useState<string>("attempt");
 
-  const answerRef = useRef<HTMLTextAreaElement>(null);
+  const inputRefs = useRef<
+    Record<string, HTMLTextAreaElement | HTMLInputElement | null>
+  >({});
 
   const requiredParameters = useMemo(
     () => extractRequiredParameters(questionFormulas),
@@ -286,23 +309,43 @@ export function AnswerWorkspace({
   const missingParams = requiredParameters.filter((item) => !filledSet.has(item));
   const hasParam = filledSet.size > 0;
 
+  const missingPartAttempts = hasSubparts
+    ? parsedQuestion.parts.filter(
+        (part) => (partAttempts[part.key] ?? "").trim().length < 10,
+      )
+    : [];
+
+  const missingPartSums = hasSubparts
+    ? parsedQuestion.parts.filter((part) => (partSums[part.key] ?? "").trim().length === 0)
+    : [];
+
   const step2Ok =
     missingFormulas.length === 0 &&
     extraFormulas.length === 0 &&
     selectedSet.size === requiredFormulaSet.size;
   const step3Ok = step2Ok && hasParam && missingParams.length === 0;
-  const step4Ok = step3Ok && attempt.trim().length >= 20;
-  const step5Ok = step4Ok && sumLine.trim().length > 0;
+  const step4Ok = step3Ok && (hasSubparts ? missingPartAttempts.length === 0 : attempt.trim().length >= 20);
+  const step5Ok = step4Ok && (hasSubparts ? missingPartSums.length === 0 : sumLine.trim().length > 0);
 
   useEffect(() => {
     const payload: DraftState = {
       attempt,
       sumLine,
+      partAttempts,
+      partSums,
       parameters,
       selectedFormulas,
     };
     localStorage.setItem(storageKey(questionId), JSON.stringify(payload));
-  }, [attempt, sumLine, parameters, questionId, selectedFormulas]);
+  }, [
+    attempt,
+    sumLine,
+    partAttempts,
+    partSums,
+    parameters,
+    questionId,
+    selectedFormulas,
+  ]);
 
   useEffect(() => {
     if (!onValidationChange) {
@@ -318,26 +361,65 @@ export function AnswerWorkspace({
     }
   };
 
+  const registerInputRef = (fieldKey: string) => {
+    return (el: HTMLTextAreaElement | HTMLInputElement | null) => {
+      inputRefs.current[fieldKey] = el;
+    };
+  };
+
   const insertAtCursor = (token: string) => {
-    const el = answerRef.current;
-    if (!el) {
-      setAttempt((previous) => `${previous}${token}`);
+    let targetKey = activeFieldKey;
+    if (hasSubparts && !targetKey.startsWith("part-")) {
+      const firstKey = parsedQuestion.parts[0]?.key;
+      if (firstKey) {
+        targetKey = `part-attempt-${firstKey}`;
+      }
+    }
+
+    const targetEl = inputRefs.current[targetKey];
+
+    const updateText = (
+      currentValue: string,
+      setter: (next: string) => void,
+      fallbackLength: number,
+    ) => {
+      const start = targetEl?.selectionStart ?? fallbackLength;
+      const end = targetEl?.selectionEnd ?? fallbackLength;
+      const nextValue = `${currentValue.slice(0, start)}${token}${currentValue.slice(end)}`;
+
+      setter(nextValue);
       resetValidation();
+
+      const cursor = start + token.length;
+      requestAnimationFrame(() => {
+        if (!targetEl) {
+          return;
+        }
+        targetEl.focus();
+        targetEl.setSelectionRange(cursor, cursor);
+      });
+    };
+
+    if (targetKey.startsWith("part-attempt-")) {
+      const key = targetKey.replace("part-attempt-", "");
+      const current = partAttempts[key] ?? "";
+      updateText(current, (next) => setPartAttempts((previous) => ({ ...previous, [key]: next })), current.length);
       return;
     }
 
-    const start = el.selectionStart ?? attempt.length;
-    const end = el.selectionEnd ?? attempt.length;
-    const nextValue = `${attempt.slice(0, start)}${token}${attempt.slice(end)}`;
+    if (targetKey.startsWith("part-sum-")) {
+      const key = targetKey.replace("part-sum-", "");
+      const current = partSums[key] ?? "";
+      updateText(current, (next) => setPartSums((previous) => ({ ...previous, [key]: next })), current.length);
+      return;
+    }
 
-    setAttempt(nextValue);
-    resetValidation();
+    if (targetKey === "sum") {
+      updateText(sumLine, setSumLine, sumLine.length);
+      return;
+    }
 
-    const cursor = start + token.length;
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(cursor, cursor);
-    });
+    updateText(attempt, setAttempt, attempt.length);
   };
 
   const updateParameter = (id: string, field: "name" | "value", value: string) => {
@@ -391,10 +473,22 @@ export function AnswerWorkspace({
       reasons.push(`Step 3: missing parameters ${missingParams.join(", ")}.`);
     }
     if (!step4Ok) {
-      reasons.push("Step 4: write your full setup/answer with formula and parameters.");
+      if (hasSubparts && missingPartAttempts.length > 0) {
+        reasons.push(
+          `Step 4: complete each sub-question (${missingPartAttempts.map((part) => part.label).join(", ")}).`,
+        );
+      } else {
+        reasons.push("Step 4: write your full setup/answer with formula and parameters.");
+      }
     }
     if (!step5Ok) {
-      reasons.push("Step 5: write the sum.");
+      if (hasSubparts && missingPartSums.length > 0) {
+        reasons.push(
+          `Step 5: write a final sum/result for each sub-question (${missingPartSums.map((part) => part.label).join(", ")}).`,
+        );
+      } else {
+        reasons.push("Step 5: write the sum.");
+      }
     }
 
     setSetupStatus("fail");
@@ -486,6 +580,11 @@ export function AnswerWorkspace({
         1) Read question 2) Choose formulas 3) Define parameters 4) Write setup and
         answer 5) Write the sum.
       </p>
+      {hasSubparts ? (
+        <p className="mt-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
+          This question has sub-parts. You must answer each part separately.
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
         <span
           className={`rounded-full px-2.5 py-1 ${
@@ -633,22 +732,64 @@ export function AnswerWorkspace({
             <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               4) Write the problem and answer using formulas and parameters
             </h4>
+            <p className="mt-1 text-xs text-slate-700 dark:text-slate-200">
+              Template: Let/define symbols, Given, Formula, Substitute, Compute,
+              Answer.
+            </p>
             {!step3Ok ? (
               <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
                 Complete step 3 first.
               </p>
             ) : null}
-            <textarea
-              ref={answerRef}
-              value={attempt}
-              disabled={!step3Ok}
-              onChange={(event) => {
-                setAttempt(event.target.value);
-                resetValidation();
-              }}
-              placeholder="Write your full setup and answer here..."
-              className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            />
+
+            {hasSubparts ? (
+              <div className="mt-2 space-y-3">
+                {parsedQuestion.parts.map((part) => {
+                  const fieldKey = `part-attempt-${part.key}`;
+                  return (
+                    <div
+                      key={`attempt-${part.key}`}
+                      className="rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        Answer {part.label}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                        <MathText text={part.body} />
+                      </p>
+                      <textarea
+                        ref={registerInputRef(fieldKey)}
+                        value={partAttempts[part.key] ?? ""}
+                        disabled={!step3Ok}
+                        onFocus={() => setActiveFieldKey(fieldKey)}
+                        onChange={(event) => {
+                          setPartAttempts((previous) => ({
+                            ...previous,
+                            [part.key]: event.target.value,
+                          }));
+                          resetValidation();
+                        }}
+                        placeholder={`Write full setup and answer for ${part.label}...`}
+                        className="mt-2 min-h-28 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <textarea
+                ref={registerInputRef("attempt")}
+                value={attempt}
+                disabled={!step3Ok}
+                onFocus={() => setActiveFieldKey("attempt")}
+                onChange={(event) => {
+                  setAttempt(event.target.value);
+                  resetValidation();
+                }}
+                placeholder="Write your full setup and answer here..."
+                className="mt-2 min-h-48 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base leading-relaxed text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              />
+            )}
 
             <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -683,16 +824,52 @@ export function AnswerWorkspace({
                 Complete step 4 first.
               </p>
             ) : null}
-            <input
-              value={sumLine}
-              disabled={!step4Ok}
-              onChange={(event) => {
-                setSumLine(event.target.value);
-                resetValidation();
-              }}
-              placeholder="Example: 0.16 + 0.69 + 0 = 0.85"
-              className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            />
+
+            {hasSubparts ? (
+              <div className="mt-2 space-y-2">
+                {parsedQuestion.parts.map((part) => {
+                  const fieldKey = `part-sum-${part.key}`;
+                  return (
+                    <div
+                      key={`sum-${part.key}`}
+                      className="rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <label className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        Final sum/result {part.label}
+                      </label>
+                      <input
+                        ref={registerInputRef(fieldKey)}
+                        value={partSums[part.key] ?? ""}
+                        disabled={!step4Ok}
+                        onFocus={() => setActiveFieldKey(fieldKey)}
+                        onChange={(event) => {
+                          setPartSums((previous) => ({
+                            ...previous,
+                            [part.key]: event.target.value,
+                          }));
+                          resetValidation();
+                        }}
+                        placeholder={`Write final line for ${part.label}`}
+                        className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <input
+                ref={registerInputRef("sum")}
+                value={sumLine}
+                disabled={!step4Ok}
+                onFocus={() => setActiveFieldKey("sum")}
+                onChange={(event) => {
+                  setSumLine(event.target.value);
+                  resetValidation();
+                }}
+                placeholder="Example: 0.16 + 0.69 + 0 = 0.85"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              />
+            )}
           </section>
 
           <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/25">

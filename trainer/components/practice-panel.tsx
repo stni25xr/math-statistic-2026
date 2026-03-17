@@ -264,6 +264,7 @@ export function PracticePanel() {
               <AnswerWorkspace
                 key={current.id}
                 questionId={current.id}
+                questionText={current.question}
                 moduleName={
                   categoryDefinitions.find((c) => c.slug === current.category)?.title ??
                   current.category
