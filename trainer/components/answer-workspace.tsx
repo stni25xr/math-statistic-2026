@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
 import { MathText } from "@/components/math-text";
 import { parseQuestionParts } from "@/lib/question-parts";
 
@@ -35,6 +34,22 @@ const calcRows = [
   ["ln", "log", "sin", "cos", "tan"],
   ["exp", "Ans", "%", "+/-", "Insert"],
 ] as const;
+
+const mathSymbols: Array<{ label: string; token: string }> = [
+  { label: "μ", token: "μ" },
+  { label: "σ", token: "σ" },
+  { label: "λ", token: "λ" },
+  { label: "Φ", token: "Φ" },
+  { label: "θ", token: "θ" },
+  { label: "x̄", token: "x̄" },
+  { label: "p̂", token: "p̂" },
+  { label: "≤", token: " ≤ " },
+  { label: "≥", token: " ≥ " },
+  { label: "≠", token: " ≠ " },
+  { label: "≈", token: " ≈ " },
+  { label: "√", token: "√" },
+  { label: "∞", token: "∞" },
+];
 
 function storageKey(questionId: string): string {
   return `math-stat-2026-minimal-${questionId}`;
@@ -148,10 +163,19 @@ export function AnswerWorkspace({
   expectedAnswer,
   onValidationChange,
 }: AnswerWorkspaceProps) {
-  const pathname = usePathname();
-  const basePrefix = pathname.startsWith("/math-statistic-2026")
-    ? "/math-statistic-2026"
-    : "";
+  const [basePrefix] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    const path = window.location.pathname;
+    if (
+      path === "/math-statistic-2026" ||
+      path.startsWith("/math-statistic-2026/")
+    ) {
+      return "/math-statistic-2026";
+    }
+    return "";
+  });
 
   const parsed = useMemo(() => parseQuestionParts(questionText), [questionText]);
   const partEntries = useMemo<PartEntry[]>(() => {
@@ -438,6 +462,24 @@ export function AnswerWorkspace({
         ))}
       </div>
 
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+          Math symbols
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {mathSymbols.map((symbol) => (
+            <button
+              key={symbol.label}
+              type="button"
+              onClick={() => insertToActiveAnswer(symbol.token)}
+              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              {symbol.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/25">
         <button
           type="button"
@@ -472,7 +514,7 @@ export function AnswerWorkspace({
             onClick={() => setPanel("none")}
             className="fixed inset-0 z-40 bg-slate-900/35"
           />
-          <aside className="fixed inset-y-0 right-0 z-50 w-[min(92vw,420px)] border-l border-slate-300 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+          <aside className="fixed inset-y-0 right-0 z-50 w-[70vw] max-w-[980px] min-w-[360px] border-l border-slate-300 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
             <div className="flex items-center justify-between">
               <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {panel === "calculator"
@@ -526,7 +568,7 @@ export function AnswerWorkspace({
             {panel === "formulas" ? (
               <iframe
                 title="Formula reference PDF"
-                src={`${basePrefix}/references/MathStatFormulas.pdf#toolbar=1&navpanes=0`}
+                src={`${basePrefix}/references/MathStatFormulas.pdf#toolbar=1&navpanes=0&zoom=70`}
                 className="mt-3 h-[calc(100vh-7rem)] w-full rounded-lg border border-slate-300 dark:border-slate-700"
               />
             ) : null}
@@ -534,7 +576,7 @@ export function AnswerWorkspace({
             {panel === "tables" ? (
               <iframe
                 title="Table reference PDF"
-                src={`${basePrefix}/references/tables.pdf#toolbar=1&navpanes=0`}
+                src={`${basePrefix}/references/tables.pdf#toolbar=1&navpanes=0&zoom=70`}
                 className="mt-3 h-[calc(100vh-7rem)] w-full rounded-lg border border-slate-300 dark:border-slate-700"
               />
             ) : null}
