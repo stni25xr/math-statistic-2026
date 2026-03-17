@@ -244,7 +244,20 @@ export function PracticePanel() {
             </div>
 
             <div className="mt-5">
-              <AnswerWorkspace key={current.id} questionId={current.id} />
+              <AnswerWorkspace
+                key={current.id}
+                questionId={current.id}
+                moduleName={
+                  categoryDefinitions.find((c) => c.slug === current.category)?.title ??
+                  current.category
+                }
+                moduleFormulas={
+                  categoryDefinitions.find((c) => c.slug === current.category)
+                    ?.keyFormulas ?? current.formulasNeeded
+                }
+                questionFormulas={current.formulasNeeded}
+                category={current.category}
+              />
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">

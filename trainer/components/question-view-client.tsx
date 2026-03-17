@@ -185,7 +185,14 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
         </section>
 
         <div className="mt-5">
-          <AnswerWorkspace key={question.id} questionId={question.id} />
+          <AnswerWorkspace
+            key={question.id}
+            questionId={question.id}
+            moduleName={category?.title ?? question.category}
+            moduleFormulas={category?.keyFormulas ?? question.formulasNeeded}
+            questionFormulas={question.formulasNeeded}
+            category={question.category}
+          />
         </div>
       </article>
     </main>
