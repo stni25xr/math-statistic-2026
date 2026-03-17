@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useI18n } from "@/components/i18n-provider";
 import { CategoryDefinition } from "@/lib/types";
 
 interface CategoryCardProps {
@@ -12,6 +15,7 @@ export function CategoryCard({
   questionCount,
   completedCount,
 }: CategoryCardProps) {
+  const { t, categoryTitle } = useI18n();
   const progressPct = questionCount
     ? Math.round((completedCount / questionCount) * 100)
     : 0;
@@ -23,7 +27,7 @@ export function CategoryCard({
     >
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-700 dark:text-slate-100 dark:group-hover:text-blue-300">
-          {category.title}
+          {categoryTitle(category.slug, category.title)}
         </h3>
         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {questionCount} Q
@@ -34,7 +38,7 @@ export function CategoryCard({
       </p>
       <div className="mt-4">
         <div className="mb-2 flex justify-between text-xs text-slate-500 dark:text-slate-400">
-          <span>Progress</span>
+          <span>{t("progress")}</span>
           <span>{progressPct}%</span>
         </div>
         <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">

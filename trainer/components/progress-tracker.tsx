@@ -1,6 +1,7 @@
 "use client";
 
 import { StudyQuestion } from "@/lib/types";
+import { useI18n } from "@/components/i18n-provider";
 import { useProgress } from "@/components/progress-provider";
 
 interface ProgressTrackerProps {
@@ -9,6 +10,7 @@ interface ProgressTrackerProps {
 
 export function ProgressTracker({ questions }: ProgressTrackerProps) {
   const { progress } = useProgress();
+  const { t } = useI18n();
 
   const total = questions.length;
   const completed = questions.filter((q) => progress.completed.includes(q.id)).length;
@@ -22,24 +24,24 @@ export function ProgressTracker({ questions }: ProgressTrackerProps) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        Progress overview
+        {t("progress_overview")}
       </h2>
       <>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Completed</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t("completed")}</p>
             <p className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">
               {completed}/{total}
             </p>
           </div>
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Need review</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t("need_review")}</p>
             <p className="mt-1 text-2xl font-semibold text-amber-600 dark:text-amber-300">
               {review}
             </p>
           </div>
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800">
-            <p className="text-xs text-slate-500 dark:text-slate-400">Understood</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{t("understood")}</p>
             <p className="mt-1 text-2xl font-semibold text-emerald-600 dark:text-emerald-300">
               {understood}
             </p>
@@ -48,7 +50,7 @@ export function ProgressTracker({ questions }: ProgressTrackerProps) {
 
         <div className="mt-4">
           <div className="mb-2 flex justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Goal progress (target: 30 points readiness)</span>
+            <span>{t("goal_progress")}</span>
             <span>{progressPct}%</span>
           </div>
           <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-700">

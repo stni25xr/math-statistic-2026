@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/components/i18n-provider";
 import { MathText } from "@/components/math-text";
 import { parseQuestionParts } from "@/lib/question-parts";
 
@@ -163,6 +164,7 @@ export function AnswerWorkspace({
   expectedAnswer,
   onValidationChange,
 }: AnswerWorkspaceProps) {
+  const { t } = useI18n();
   const [basePrefix] = useState(() => {
     if (typeof window === "undefined") {
       return "";
@@ -263,15 +265,23 @@ export function AnswerWorkspace({
 
     const issues: string[] = [];
     if (missingTyped.length > 0) {
-      issues.push(`Write answer text for ${missingTyped.map((item) => item.label).join(", ")}.`);
+      issues.push(
+        t("write_answer_for", {
+          parts: missingTyped.map((item) => item.label).join(", "),
+        }),
+      );
     }
     if (wrongSelect.length > 0) {
-      issues.push(`Pick correct dropdown answer for ${wrongSelect.map((item) => item.label).join(", ")}.`);
+      issues.push(
+        t("pick_dropdown_for", {
+          parts: wrongSelect.map((item) => item.label).join(", "),
+        }),
+      );
     }
 
     if (issues.length === 0) {
       setStatus("pass");
-      setStatusMessage("Correct. You can continue.");
+      setStatusMessage(t("continue_ok"));
       return;
     }
 
@@ -377,7 +387,7 @@ export function AnswerWorkspace({
     <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-          Answer workspace
+          {t("answer_workspace")}
         </h3>
         <div className="flex flex-wrap gap-2">
           <button
@@ -385,21 +395,21 @@ export function AnswerWorkspace({
             onClick={() => setPanel("calculator")}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            Calculator
+            {t("calculator")}
           </button>
           <button
             type="button"
             onClick={() => setPanel("formulas")}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            Formula PDF
+            {t("formula_pdf")}
           </button>
           <button
             type="button"
             onClick={() => setPanel("tables")}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            Table PDF
+            {t("table_pdf")}
           </button>
         </div>
       </div>
@@ -411,14 +421,16 @@ export function AnswerWorkspace({
             className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800"
           >
             <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              {hasSubparts ? `Sub-question ${part.label}` : "Question"}
+              {hasSubparts
+                ? t("sub_question", { label: part.label })
+                : t("question")}
             </p>
             <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
               <MathText text={part.body} />
             </p>
 
             <label className="mt-3 block text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Your answer
+              {t("your_answer")}
               <textarea
                 ref={(el) => {
                   answerRefs.current[part.key] = el;
@@ -432,13 +444,13 @@ export function AnswerWorkspace({
                   }));
                   resetStatus();
                 }}
-                placeholder="Write your answer here"
+                placeholder={t("your_answer")}
                 className="mt-1 min-h-24 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               />
             </label>
 
             <label className="mt-3 block text-sm font-semibold text-slate-800 dark:text-slate-200">
-              Answer dropdown
+              {t("answer_dropdown")}
               <select
                 value={selectedByPart[part.key] ?? ""}
                 onChange={(event) => {
@@ -450,7 +462,7 @@ export function AnswerWorkspace({
                 }}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               >
-                <option value="">Choose answer...</option>
+                <option value="">{t("choose_answer")}</option>
                 {optionsByPart[part.key].map((option) => (
                   <option key={`${part.key}-${option}`} value={option}>
                     {option}
@@ -464,7 +476,7 @@ export function AnswerWorkspace({
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-          Math symbols
+          {t("math_symbols")}
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {mathSymbols.map((symbol) => (
@@ -486,18 +498,18 @@ export function AnswerWorkspace({
           onClick={checkAnswers}
           className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
         >
-          Check answer
+          {t("check_answer")}
         </button>
 
         {status === "pass" ? (
           <span className="ml-2 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
-            Correct
+            {t("correct")}
           </span>
         ) : null}
 
         {status === "fail" ? (
           <span className="ml-2 rounded-lg bg-rose-600 px-2 py-1 text-xs font-semibold text-white">
-            Not yet correct
+            {t("not_yet_correct")}
           </span>
         ) : null}
 
@@ -518,24 +530,24 @@ export function AnswerWorkspace({
             <div className="flex items-center justify-between">
               <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 {panel === "calculator"
-                  ? "Calculator"
+                  ? t("calculator")
                   : panel === "formulas"
-                    ? "Formula PDF"
-                    : "Table PDF"}
+                    ? t("formula_pdf")
+                    : t("table_pdf")}
               </p>
               <button
                 type="button"
                 onClick={() => setPanel("none")}
                 className="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
               >
-                Close
+                {t("close")}
               </button>
             </div>
 
             {panel === "calculator" ? (
               <div className="mt-4">
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Insert sends result to the active answer field.
+                  {t("insert_note")}
                 </p>
                 <div className="mt-2 rounded-lg border border-slate-300 bg-lime-100 p-2 font-mono text-xs text-slate-900 dark:border-slate-600 dark:bg-lime-900/40 dark:text-lime-100">
                   <div className="min-h-8 break-all">{calcInput || "0"}</div>

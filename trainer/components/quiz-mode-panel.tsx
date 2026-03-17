@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/components/i18n-provider";
 import { CategoryDefinition, CategorySlug } from "@/lib/types";
 
 interface QuizModePanelProps {
@@ -23,18 +24,19 @@ export function QuizModePanel({
   onTimerMinutesChange,
   onStart,
 }: QuizModePanelProps) {
+  const { t, categoryTitle } = useI18n();
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-        Practice mode setup
+        {t("quiz_setup")}
       </h2>
       <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-        Choose a category. Questions run exam-by-exam, then question-by-question.
+        {t("quiz_setup_desc")}
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-          Mode
+          {t("mode")}
           <select
             value={selectedCategory}
             onChange={(event) =>
@@ -42,10 +44,10 @@ export function QuizModePanel({
             }
             className="mt-1 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-800"
           >
-            <option value="all">All categories (exam order)</option>
+            <option value="all">{t("all_categories_exam_order")}</option>
             {categories.map((category) => (
               <option key={category.slug} value={category.slug}>
-                {category.title}
+                {categoryTitle(category.slug, category.title)}
               </option>
             ))}
           </select>
@@ -58,11 +60,11 @@ export function QuizModePanel({
             onChange={(event) => onTimedChange(event.target.checked)}
             className="h-4 w-4"
           />
-          Timed mode
+          {t("timed_mode")}
         </label>
 
         <label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-          Timer (minutes)
+          {t("timer_minutes")}
           <input
             type="number"
             min={5}
@@ -80,7 +82,7 @@ export function QuizModePanel({
         onClick={onStart}
         className="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
-        Start training
+        {t("start_training")}
       </button>
     </section>
   );

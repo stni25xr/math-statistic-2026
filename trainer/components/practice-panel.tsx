@@ -5,6 +5,7 @@ import { AnswerWorkspace } from "@/components/answer-workspace";
 import { CommonMistakeAlert } from "@/components/common-mistake-alert";
 import { ExamQuestionBlock } from "@/components/exam-question-block";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
+import { useI18n } from "@/components/i18n-provider";
 import { QuizModePanel } from "@/components/quiz-mode-panel";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
@@ -33,6 +34,7 @@ export function PracticePanel() {
   const [canProceed, setCanProceed] = useState(false);
 
   const { progress, toggleCompleted, toggleReview, setRating } = useProgress();
+  const { t, categoryTitle } = useI18n();
 
   const started = sessionQuestions.length > 0;
   const current = sessionQuestions[index];
@@ -162,13 +164,10 @@ export function PracticePanel() {
     <main className="mx-auto w-full max-w-7xl px-4 py-8">
       <header className="rounded-3xl border border-slate-200 bg-white/90 p-7 dark:border-slate-700 dark:bg-slate-900/90">
         <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          Practice mode
+          {t("practice_mode")}
         </h1>
         <p className="mt-2 text-base text-slate-600 dark:text-slate-300">
-          Exam-by-exam, question-by-question order. Filter by category and train in
-          real exam sequence. Reveal answers only after your attempt. Keyboard
-          shortcuts: N next, R reveal, 1/2/3 self-rating,
-          C complete, F flag review.
+          {t("practice_intro")}
         </p>
       </header>
 
@@ -189,13 +188,16 @@ export function PracticePanel() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Session progress {progressLabel}
+                  {t("session_progress", { value: progressLabel })}
                 </p>
                 <h2 className="mt-1 text-4xl font-semibold text-slate-900 dark:text-slate-100">
                   {current.title}
                 </h2>
                 <p className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">
-                  From {current.sourceExam} · Problem {current.originalProblemNumber}
+                  {t("from_exam_problem", {
+                    exam: current.sourceExam,
+                    problem: current.originalProblemNumber,
+                  })}
                 </p>
               </div>
 
@@ -221,17 +223,17 @@ export function PracticePanel() {
                       : "bg-slate-400 cursor-not-allowed"
                   }`}
                 >
-                  Next question
+                  {t("next_question")}
                 </button>
               </div>
             </div>
             {!canProceed ? (
               <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
-                Complete setup checkpoint in the workspace to unlock next question.
+                {t("checkpoint_pending")}
               </p>
             ) : (
               <p className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                Checkpoint passed. You can proceed to the next question.
+                {t("checkpoint_passed")}
               </p>
             )}
 
@@ -241,7 +243,7 @@ export function PracticePanel() {
 
             <div className="mt-3 flex flex-wrap gap-2 text-xs">
               <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                {current.category}
+                {categoryTitle(current.category, current.category)}
               </span>
               <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                 {current.difficulty}
@@ -272,7 +274,7 @@ export function PracticePanel() {
                 onClick={() => setRevealed((previous) => !previous)}
                 className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
               >
-                {revealed ? "Hide answer" : "Reveal answer"}
+                {revealed ? t("hide_answer") : t("reveal_answer")}
               </button>
 
               <button
@@ -285,8 +287,8 @@ export function PracticePanel() {
                 }`}
               >
                 {progress.completed.includes(current.id)
-                  ? "Completed"
-                  : "Mark completed"}
+                  ? t("completed")
+                  : t("mark_completed")}
               </button>
 
               <button
@@ -298,7 +300,9 @@ export function PracticePanel() {
                     : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
                 }`}
               >
-                {progress.review.includes(current.id) ? "Needs review" : "Flag review"}
+                {progress.review.includes(current.id)
+                  ? t("needs_review")
+                  : t("flag_review")}
               </button>
             </div>
 
@@ -308,21 +312,21 @@ export function PracticePanel() {
                 onClick={() => applyRating("understood")}
                 className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
               >
-                Understood
+                {t("understood")}
               </button>
               <button
                 type="button"
                 onClick={() => applyRating("almost")}
                 className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white"
               >
-                Almost
+                {t("almost")}
               </button>
               <button
                 type="button"
                 onClick={() => applyRating("need-review")}
                 className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white"
               >
-                Need review
+                {t("need_review")}
               </button>
             </div>
 

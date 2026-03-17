@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { StudyQuestion } from "@/lib/types";
-import { useProgress } from "@/components/progress-provider";
+import { useI18n } from "@/components/i18n-provider";
 import { MathText } from "@/components/math-text";
+import { useProgress } from "@/components/progress-provider";
+import { StudyQuestion } from "@/lib/types";
 
 interface QuestionCardProps {
   question: StudyQuestion;
@@ -17,6 +18,7 @@ export function QuestionCard({
   showFormulas = false,
 }: QuestionCardProps) {
   const { progress, toggleCompleted, toggleReview } = useProgress();
+  const { t } = useI18n();
 
   const isCompleted = progress.completed.includes(question.id);
   const isReview = progress.review.includes(question.id);
@@ -29,7 +31,10 @@ export function QuestionCard({
             {question.title}
           </h3>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {question.sourceExam} · Problem {question.originalProblemNumber}
+            {t("source_problem", {
+              exam: question.sourceExam,
+              problem: question.originalProblemNumber,
+            })}
           </p>
         </div>
         <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
@@ -54,7 +59,7 @@ export function QuestionCard({
 
       {showFormulas ? (
         <div className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-          <p className="font-semibold">Formulas needed</p>
+          <p className="font-semibold">{t("key_formulas")}</p>
           <ul className="mt-1 list-disc space-y-1 pl-4">
             {question.formulasNeeded.map((formula) => (
               <li key={formula}>
@@ -67,7 +72,7 @@ export function QuestionCard({
 
       {showSolutionPreview ? (
         <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-950 dark:border-blue-900 dark:bg-blue-900/30 dark:text-blue-100">
-          <p className="font-semibold">Method in one line</p>
+          <p className="font-semibold">{t("why_method_applies")}</p>
           <p className="mt-1">{question.whyMethodApplies}</p>
         </div>
       ) : null}
@@ -82,7 +87,7 @@ export function QuestionCard({
               : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
           }`}
         >
-          {isCompleted ? "Completed" : "Mark completed"}
+          {isCompleted ? t("completed") : t("mark_completed")}
         </button>
 
         <button
@@ -94,14 +99,14 @@ export function QuestionCard({
               : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
           }`}
         >
-          {isReview ? "Needs review" : "Flag review"}
+          {isReview ? t("needs_review") : t("flag_review")}
         </button>
 
         <Link
           href={`/questions/${question.id}`}
           className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          Open question
+          {t("open_question")}
         </Link>
       </div>
     </article>

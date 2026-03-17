@@ -7,6 +7,7 @@ import { CommonMistakeAlert } from "@/components/common-mistake-alert";
 import { ExamQuestionBlock } from "@/components/exam-question-block";
 import { ExamShortcutTip } from "@/components/exam-shortcut-tip";
 import { FormulaBox } from "@/components/formula-box";
+import { useI18n } from "@/components/i18n-provider";
 import { MathText } from "@/components/math-text";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
@@ -17,17 +18,12 @@ interface QuestionViewClientProps {
   question: StudyQuestion;
 }
 
-const ratingLabels: Record<ProgressRating, string> = {
-  understood: "Understood",
-  almost: "Almost",
-  "need-review": "Need review",
-};
-
 export function QuestionViewClient({ question }: QuestionViewClientProps) {
   const [showFormulas, setShowFormulas] = useState(true);
   const [showSolution, setShowSolution] = useState(true);
 
   const { progress, toggleCompleted, toggleReview, setRating } = useProgress();
+  const { t, categoryTitle } = useI18n();
 
   const category = useMemo(
     () => categoryDefinitions.find((item) => item.slug === question.category),
@@ -37,6 +33,11 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
   const selectedRating = progress.ratings[question.id];
   const isCompleted = progress.completed.includes(question.id);
   const isReview = progress.review.includes(question.id);
+  const ratingLabels: Record<ProgressRating, string> = {
+    understood: t("understood"),
+    almost: t("almost"),
+    "need-review": t("need_review"),
+  };
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8">
@@ -44,13 +45,13 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
         href={`/categories/${question.category}`}
         className="text-sm text-blue-700 underline decoration-blue-300 underline-offset-2 dark:text-blue-300"
       >
-        Back to category
+        {t("back_to_category")}
       </Link>
 
       <article className="mt-3 rounded-3xl border border-slate-200 bg-white/90 p-7 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 sm:p-10">
         <header>
           <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            <span>{category?.title ?? question.category}</span>
+            <span>{categoryTitle(question.category, category?.title ?? question.category)}</span>
             <span>•</span>
             <span>{question.subcategory}</span>
             <span>•</span>
@@ -62,7 +63,10 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
           </h1>
 
           <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-            Source: {question.sourceExam} · Problem {question.originalProblemNumber}
+            {t("source_problem", {
+              exam: question.sourceExam,
+              problem: question.originalProblemNumber,
+            })}
           </p>
 
           <div className="mt-4">
@@ -73,7 +77,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
         <section className="mt-5 grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Why this method applies
+              {t("why_method_applies")}
             </h2>
             <div className="mt-2 text-base leading-relaxed text-slate-700 dark:text-slate-200">
               <MathText text={question.whyMethodApplies} />
@@ -82,7 +86,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Pattern recognition hint
+              {t("pattern_hint")}
             </h2>
             <div className="mt-2 text-base leading-relaxed text-slate-700 dark:text-slate-200">
               <MathText text={question.patternHint} />
@@ -92,7 +96,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
 
         {question.alternativeMethodWarning ? (
           <section className="mt-4 rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-800 dark:bg-rose-900/30 dark:text-rose-100">
-            <p className="font-semibold">Why other methods are wrong here</p>
+            <p className="font-semibold">{t("why_other_wrong")}</p>
             <p className="mt-1">{question.alternativeMethodWarning}</p>
           </section>
         ) : null}
@@ -103,14 +107,14 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             onClick={() => setShowFormulas((previous) => !previous)}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            {showFormulas ? "Hide formulas" : "Show formulas"}
+            {showFormulas ? t("hide_formulas") : t("show_formulas")}
           </button>
           <button
             type="button"
             onClick={() => setShowSolution((previous) => !previous)}
             className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            {showSolution ? "Hide full solution" : "Show full solution"}
+            {showSolution ? t("hide_full_solution") : t("show_full_solution")}
           </button>
         </section>
 
@@ -139,7 +143,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
 
         <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            Track this question
+            {t("track_question")}
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -151,7 +155,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
                   : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
               }`}
             >
-              {isCompleted ? "Completed" : "Mark completed"}
+              {isCompleted ? t("completed") : t("mark_completed")}
             </button>
             <button
               type="button"
@@ -162,7 +166,7 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
                   : "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
               }`}
             >
-              {isReview ? "Needs review" : "Flag review"}
+              {isReview ? t("needs_review") : t("flag_review")}
             </button>
           </div>
 

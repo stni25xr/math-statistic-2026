@@ -1,3 +1,6 @@
+"use client";
+
+import { useI18n } from "@/components/i18n-provider";
 import { CrashPlanDay } from "@/lib/types";
 
 interface DailyPlanCardProps {
@@ -5,6 +8,7 @@ interface DailyPlanCardProps {
 }
 
 export function DailyPlanCard({ day }: DailyPlanCardProps) {
+  const { t } = useI18n();
   return (
     <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900">
       <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -14,7 +18,7 @@ export function DailyPlanCard({ day }: DailyPlanCardProps) {
 
       <section className="mt-4">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          What to study
+          {t("what_to_study")}
         </h4>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
           {day.goals.map((item) => (
@@ -25,7 +29,7 @@ export function DailyPlanCard({ day }: DailyPlanCardProps) {
 
       <section className="mt-4">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          What to memorize
+          {t("what_to_memorize")}
         </h4>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
           {day.memorize.map((item) => (
@@ -36,7 +40,7 @@ export function DailyPlanCard({ day }: DailyPlanCardProps) {
 
       <section className="mt-4">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          What to drill
+          {t("what_to_drill")}
         </h4>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
           {day.drills.map((item) => (
@@ -47,7 +51,7 @@ export function DailyPlanCard({ day }: DailyPlanCardProps) {
 
       <section className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/30">
         <h4 className="text-xs font-semibold uppercase tracking-wide text-amber-900 dark:text-amber-100">
-          Skip if short on time
+          {t("skip_if_short")}
         </h4>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-100">
           {day.skipIfShortOnTime.map((item) => (

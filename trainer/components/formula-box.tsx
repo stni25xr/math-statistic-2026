@@ -1,4 +1,7 @@
+"use client";
+
 import { BlockFormula } from "@/components/math-formula";
+import { useI18n } from "@/components/i18n-provider";
 import { normalizeLatex } from "@/lib/math-format";
 
 interface FormulaBoxProps {
@@ -7,10 +10,12 @@ interface FormulaBoxProps {
 }
 
 export function FormulaBox({ formulas, compact = false }: FormulaBoxProps) {
+  const { t } = useI18n();
+
   return (
     <section className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4 dark:border-blue-900 dark:bg-blue-950/40">
       <h3 className="text-base font-semibold text-blue-900 dark:text-blue-200">
-        Key formulas
+        {t("key_formulas")}
       </h3>
       <ul
         className={`mt-3 space-y-3 text-blue-950 dark:text-blue-100 ${compact ? "max-h-56 overflow-auto pr-2" : ""}`}

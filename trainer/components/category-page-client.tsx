@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FormulaBox } from "@/components/formula-box";
+import { useI18n } from "@/components/i18n-provider";
 import { QuestionCard } from "@/components/question-card";
 import { TopicFilterBar } from "@/components/topic-filter-bar";
 import { CategoryDefinition, Difficulty, StudyQuestion } from "@/lib/types";
@@ -15,6 +16,7 @@ export function CategoryPageClient({
   category,
   questions,
 }: CategoryPageClientProps) {
+  const { t, categoryTitle } = useI18n();
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | "all">("all");
   const [selectedFormula, setSelectedFormula] = useState("all");
@@ -62,10 +64,10 @@ export function CategoryPageClient({
     <main className="mx-auto w-full max-w-6xl px-4 py-8">
       <header className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900/90 sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
-          Category
+          {t("category")}
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-          {category.title}
+          {categoryTitle(category.slug, category.title)}
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-700 dark:text-slate-300">
           {category.explanation}
@@ -73,7 +75,7 @@ export function CategoryPageClient({
 
         <section className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
           <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            How to identify the right method
+            {t("how_identify_method")}
           </h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
             {category.methodRecognition.map((item) => (
@@ -110,14 +112,16 @@ export function CategoryPageClient({
               onClick={() => setShowFormulas((previous) => !previous)}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
             >
-              {showFormulas ? "Hide formulas" : "Show formulas"}
+              {showFormulas ? t("hide_formulas") : t("show_formulas")}
             </button>
             <button
               type="button"
               onClick={() => setShowSolutions((previous) => !previous)}
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
             >
-              {showSolutions ? "Hide solution previews" : "Show solution previews"}
+              {showSolutions
+                ? t("hide_solution_previews")
+                : t("show_solution_previews")}
             </button>
             <button
               type="button"
@@ -125,30 +129,31 @@ export function CategoryPageClient({
               className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
             >
               {oneAtATime
-                ? "Switch to full list"
-                : "One question at a time"}
+                ? t("switch_full_list")
+                : t("one_question_at_a_time")}
             </button>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-              Question bank ({filteredQuestions.length})
+              {t("question_bank", { count: filteredQuestions.length })}
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              Easy, medium, and exam-like drills from all uploaded exams, grouped
-              by this method.
+              {t("question_bank_subtitle")}
             </p>
             <div className="mt-4 space-y-4">
               {filteredQuestions.length === 0 ? (
                 <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                  No questions match these filters. Try a wider keyword or reset
-                  formula filter.
+                  {t("no_questions_match")}
                 </p>
               ) : oneAtATime ? (
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800">
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                      Question {boundedIndex + 1} of {filteredQuestions.length}
+                      {t("question_x_of_y", {
+                        x: boundedIndex + 1,
+                        y: filteredQuestions.length,
+                      })}
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -162,7 +167,7 @@ export function CategoryPageClient({
                         }
                         className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-700"
                       >
-                        Previous
+                        {t("previous")}
                       </button>
                       <button
                         type="button"
@@ -173,7 +178,7 @@ export function CategoryPageClient({
                         }
                         className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                       >
-                        Next
+                        {t("next")}
                       </button>
                     </div>
                   </div>
@@ -204,7 +209,7 @@ export function CategoryPageClient({
 
           <section className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              Common patterns
+              {t("common_patterns")}
             </h3>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700 dark:text-slate-200">
               {category.commonPatterns.map((pattern) => (
@@ -215,7 +220,7 @@ export function CategoryPageClient({
 
           <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/30">
             <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-              Common mistakes
+              {t("common_mistakes")}
             </h3>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-100">
               {category.commonMistakes.map((mistake) => (
