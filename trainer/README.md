@@ -65,6 +65,25 @@ This app is configured for static export and auto-deploy through:
 - Public URL target: [https://stni25xr.github.io/math-statistic-2026/](https://stni25xr.github.io/math-statistic-2026/)
 
 `NEXT_BASE_PATH` is set in the workflow to `/math-statistic-2026` so links work on Pages.
+`NEXT_STATIC_EXPORT=1` is used in Pages workflow.
+
+Important:
+- GitHub Pages is static-only. The AI Tutor backend route (`/api/ai-tutor`) does not run there.
+
+## Web deployment with AI Tutor enabled
+
+To have AI Tutor available on the web, deploy this Next.js app to a server runtime (for example Vercel).
+
+### Vercel quick setup
+
+1. Import the GitHub repo in Vercel.
+2. Set Root Directory to `trainer`.
+3. Add environment variables:
+   - `OPENAI_API_KEY`
+   - `OPENAI_MODEL` (optional, e.g. `gpt-4.1-mini`)
+4. Deploy.
+
+This runtime will serve `/api/ai-tutor`, so AI Tutor works publicly.
 
 ## Project structure
 

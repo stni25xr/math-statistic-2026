@@ -37,6 +37,7 @@ jobs:
       - name: Build static export
         env:
           NEXT_BASE_PATH: /math-statistic-2026
+          NEXT_STATIC_EXPORT: "1"
         run: npm run build -- --webpack
 
       - name: Upload Pages artifact
