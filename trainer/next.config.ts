@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
 
 const basePath = process.env.NEXT_BASE_PATH || "";
-const staticExport = process.env.NEXT_STATIC_EXPORT === "1";
 
 const nextConfig: NextConfig = {
-  ...(staticExport ? { output: "export" as const } : {}),
+  output: "export",
   trailingSlash: true,
   images: {
     unoptimized: true,
