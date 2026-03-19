@@ -9,6 +9,10 @@ interface AnswerWorkspaceProps {
   questionId: string;
   questionText: string;
   expectedAnswer: string;
+  questionType: string;
+  formulasNeeded: string[];
+  questionTypePool: string[];
+  formulaPool: string[];
   onValidationChange?: (isValid: boolean) => void;
 }
 
@@ -17,11 +21,14 @@ interface PartEntry {
   label: string;
   body: string;
   expected: string;
+  expectedQuestionType: string;
+  expectedFormula: string;
 }
 
 interface DraftState {
   answersByPart: Record<string, string>;
-  selectedByPart: Record<string, string>;
+  selectedQuestionTypeByPart: Record<string, string>;
+  selectedFormulaByPart: Record<string, string>;
 }
 
 type SidePanel = "none" | "calculator" | "formulas" | "tables";
@@ -58,22 +65,37 @@ function storageKey(questionId: string): string {
 
 function loadDraft(questionId: string): DraftState {
   if (typeof window === "undefined") {
-    return { answersByPart: {}, selectedByPart: {} };
+    return {
+      answersByPart: {},
+      selectedQuestionTypeByPart: {},
+      selectedFormulaByPart: {},
+    };
   }
 
   const raw = localStorage.getItem(storageKey(questionId));
   if (!raw) {
-    return { answersByPart: {}, selectedByPart: {} };
+    return {
+      answersByPart: {},
+      selectedQuestionTypeByPart: {},
+      selectedFormulaByPart: {},
+    };
   }
 
   try {
-    const parsed = JSON.parse(raw) as DraftState;
+    const parsed = JSON.parse(raw) as DraftState & {
+      selectedByPart?: Record<string, string>;
+    };
     return {
       answersByPart: parsed.answersByPart ?? {},
-      selectedByPart: parsed.selectedByPart ?? {},
+      selectedQuestionTypeByPart: parsed.selectedQuestionTypeByPart ?? {},
+      selectedFormulaByPart: parsed.selectedFormulaByPart ?? parsed.selectedByPart ?? {},
     };
   } catch {
-    return { answersByPart: {}, selectedByPart: {} };
+    return {
+      answersByPart: {},
+      selectedQuestionTypeByPart: {},
+      selectedFormulaByPart: {},
+    };
   }
 }
 
@@ -90,32 +112,39 @@ function splitExpectedAnswer(expected: string, count: number): string[] {
   return Array.from({ length: count }, () => expected.trim());
 }
 
-function buildChoices(correct: string): string[] {
-  const normalized = correct.trim();
-  const numberMatch = normalized.match(/-?\d+(?:\.\d+)?/);
-
-  let optionB = "0";
-  let optionC = "Not enough information";
-
-  if (numberMatch) {
-    const n = Number(numberMatch[0]);
-    if (Number.isFinite(n)) {
-      const up = (n * 1.1).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-      const down = (n * 0.9).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-      optionB = normalized.replace(numberMatch[0], up);
-      optionC = normalized.replace(numberMatch[0], down);
-    }
+function hashSeed(input: string): number {
+  let hash = 0;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
   }
+  return hash;
+}
 
-  const unique = [normalized, optionB, optionC].filter(
+function buildDropdownOptions(
+  correct: string,
+  pool: string[],
+  seed: string,
+): string[] {
+  const normalized = correct.trim();
+  const distractors = Array.from(
+    new Set(
+      pool
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0 && item !== normalized),
+    ),
+  )
+    .sort((a, b) => hashSeed(`${seed}-${a}`) - hashSeed(`${seed}-${b}`))
+    .slice(0, 2);
+
+  const options = [normalized, ...distractors].filter(
     (value, index, array) => value && array.indexOf(value) === index,
   );
 
-  while (unique.length < 3) {
-    unique.push(`Alternative ${unique.length}`);
+  while (options.length < 3) {
+    options.push(options.length === 1 ? "No match" : `Alternative ${options.length}`);
   }
 
-  return unique.slice(0, 3);
+  return options.slice(0, 3);
 }
 
 function evaluateExpression(expression: string, ansValue: string): string {
@@ -162,6 +191,10 @@ export function AnswerWorkspace({
   questionId,
   questionText,
   expectedAnswer,
+  questionType,
+  formulasNeeded,
+  questionTypePool,
+  formulaPool,
   onValidationChange,
 }: AnswerWorkspaceProps) {
   const { t } = useI18n();
@@ -181,6 +214,10 @@ export function AnswerWorkspace({
 
   const parsed = useMemo(() => parseQuestionParts(questionText), [questionText]);
   const partEntries = useMemo<PartEntry[]>(() => {
+    const formulaByPart = Array.from(
+      { length: parsed.parts.length > 0 ? parsed.parts.length : 1 },
+      (_, index) => formulasNeeded[index] ?? formulasNeeded[0] ?? "",
+    );
     const expectedParts = splitExpectedAnswer(
       expectedAnswer,
       parsed.parts.length > 0 ? parsed.parts.length : 1,
@@ -192,6 +229,8 @@ export function AnswerWorkspace({
         label: part.label,
         body: part.body,
         expected: expectedParts[index] ?? expectedAnswer,
+        expectedQuestionType: questionType,
+        expectedFormula: formulaByPart[index] ?? "",
       }));
     }
 
@@ -201,9 +240,11 @@ export function AnswerWorkspace({
         label: "Question",
         body: questionText,
         expected: expectedParts[0] ?? expectedAnswer,
+        expectedQuestionType: questionType,
+        expectedFormula: formulaByPart[0] ?? "",
       },
     ];
-  }, [expectedAnswer, parsed.parts, questionText]);
+  }, [expectedAnswer, formulasNeeded, parsed.parts, questionText, questionType]);
 
   const hasSubparts = parsed.parts.length > 0;
   const initial = loadDraft(questionId);
@@ -211,8 +252,11 @@ export function AnswerWorkspace({
   const [answersByPart, setAnswersByPart] = useState<Record<string, string>>(
     initial.answersByPart,
   );
-  const [selectedByPart, setSelectedByPart] = useState<Record<string, string>>(
-    initial.selectedByPart,
+  const [selectedQuestionTypeByPart, setSelectedQuestionTypeByPart] = useState<
+    Record<string, string>
+  >(initial.selectedQuestionTypeByPart);
+  const [selectedFormulaByPart, setSelectedFormulaByPart] = useState<Record<string, string>>(
+    initial.selectedFormulaByPart,
   );
   const [status, setStatus] = useState<"idle" | "pass" | "fail">("idle");
   const [statusMessage, setStatusMessage] = useState("");
@@ -226,20 +270,40 @@ export function AnswerWorkspace({
 
   const answerRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
-  const optionsByPart = useMemo(() => {
+  const questionTypeOptionsByPart = useMemo(() => {
     const data: Record<string, string[]> = {};
     partEntries.forEach((part) => {
-      data[part.key] = buildChoices(part.expected);
+      data[part.key] = buildDropdownOptions(
+        part.expectedQuestionType,
+        questionTypePool,
+        `${questionId}-${part.key}-type`,
+      );
     });
     return data;
-  }, [partEntries]);
+  }, [partEntries, questionId, questionTypePool]);
+
+  const formulaOptionsByPart = useMemo(() => {
+    const data: Record<string, string[]> = {};
+    partEntries.forEach((part) => {
+      data[part.key] = buildDropdownOptions(
+        part.expectedFormula,
+        formulaPool,
+        `${questionId}-${part.key}-formula`,
+      );
+    });
+    return data;
+  }, [formulaPool, partEntries, questionId]);
 
   useEffect(() => {
     localStorage.setItem(
       storageKey(questionId),
-      JSON.stringify({ answersByPart, selectedByPart } satisfies DraftState),
+      JSON.stringify({
+        answersByPart,
+        selectedQuestionTypeByPart,
+        selectedFormulaByPart,
+      } satisfies DraftState),
     );
-  }, [answersByPart, questionId, selectedByPart]);
+  }, [answersByPart, questionId, selectedFormulaByPart, selectedQuestionTypeByPart]);
 
   useEffect(() => {
     if (!onValidationChange) {
@@ -259,8 +323,12 @@ export function AnswerWorkspace({
     const missingTyped = partEntries.filter(
       (part) => !(answersByPart[part.key] ?? "").trim(),
     );
-    const wrongSelect = partEntries.filter(
-      (part) => (selectedByPart[part.key] ?? "") !== part.expected,
+    const wrongQuestionType = partEntries.filter(
+      (part) =>
+        (selectedQuestionTypeByPart[part.key] ?? "") !== part.expectedQuestionType,
+    );
+    const wrongFormula = partEntries.filter(
+      (part) => (selectedFormulaByPart[part.key] ?? "") !== part.expectedFormula,
     );
 
     const issues: string[] = [];
@@ -271,10 +339,17 @@ export function AnswerWorkspace({
         }),
       );
     }
-    if (wrongSelect.length > 0) {
+    if (wrongQuestionType.length > 0) {
       issues.push(
-        t("pick_dropdown_for", {
-          parts: wrongSelect.map((item) => item.label).join(", "),
+        t("pick_question_type_for", {
+          parts: wrongQuestionType.map((item) => item.label).join(", "),
+        }),
+      );
+    }
+    if (wrongFormula.length > 0) {
+      issues.push(
+        t("pick_formula_for", {
+          parts: wrongFormula.map((item) => item.label).join(", "),
         }),
       );
     }
@@ -450,11 +525,11 @@ export function AnswerWorkspace({
             </label>
 
             <label className="mt-3 block text-sm font-semibold text-slate-800 dark:text-slate-200">
-              {t("answer_dropdown")}
+              {t("question_type_dropdown")}
               <select
-                value={selectedByPart[part.key] ?? ""}
+                value={selectedQuestionTypeByPart[part.key] ?? ""}
                 onChange={(event) => {
-                  setSelectedByPart((previous) => ({
+                  setSelectedQuestionTypeByPart((previous) => ({
                     ...previous,
                     [part.key]: event.target.value,
                   }));
@@ -462,9 +537,31 @@ export function AnswerWorkspace({
                 }}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
               >
-                <option value="">{t("choose_answer")}</option>
-                {optionsByPart[part.key].map((option) => (
+                <option value="">{t("choose_question_type")}</option>
+                {questionTypeOptionsByPart[part.key].map((option) => (
                   <option key={`${part.key}-${option}`} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="mt-3 block text-sm font-semibold text-slate-800 dark:text-slate-200">
+              {t("formula_dropdown")}
+              <select
+                value={selectedFormulaByPart[part.key] ?? ""}
+                onChange={(event) => {
+                  setSelectedFormulaByPart((previous) => ({
+                    ...previous,
+                    [part.key]: event.target.value,
+                  }));
+                  resetStatus();
+                }}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+              >
+                <option value="">{t("choose_formula")}</option>
+                {formulaOptionsByPart[part.key].map((option) => (
+                  <option key={`${part.key}-formula-${option}`} value={option}>
                     {option}
                   </option>
                 ))}

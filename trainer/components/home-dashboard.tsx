@@ -70,12 +70,6 @@ export function HomeDashboard() {
           >
             {t("start_training")}
           </Link>
-          <Link
-            href="/crash-plan"
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            {t("open_crash_plan")}
-          </Link>
         </div>
 
         <label className="mt-6 block text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -145,21 +139,6 @@ export function HomeDashboard() {
 
         <div className="space-y-4">
           <ProgressTracker questions={studyQuestions} />
-
-          <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-900 dark:bg-blue-900/30">
-            <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-              {t("crash_plan_card_title")}
-            </h2>
-            <p className="mt-2 text-sm text-blue-900 dark:text-blue-100">
-              {t("crash_plan_card_text")}
-            </p>
-            <Link
-              href="/crash-plan"
-              className="mt-4 inline-block rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {t("view_daily_plan")}
-            </Link>
-          </section>
         </div>
       </div>
     </main>

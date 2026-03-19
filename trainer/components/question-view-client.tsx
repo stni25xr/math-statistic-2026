@@ -11,7 +11,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { MathText } from "@/components/math-text";
 import { StepByStepSolution } from "@/components/step-by-step-solution";
 import { useProgress } from "@/components/progress-provider";
-import { categoryDefinitions } from "@/lib/study-data";
+import { categoryDefinitions, studyQuestions } from "@/lib/study-data";
 import { ProgressRating, StudyQuestion } from "@/lib/types";
 
 interface QuestionViewClientProps {
@@ -28,6 +28,22 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
   const category = useMemo(
     () => categoryDefinitions.find((item) => item.slug === question.category),
     [question.category],
+  );
+  const questionTypePool = useMemo(
+    () =>
+      Array.from(new Set(studyQuestions.map((item) => item.subcategory)))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [],
+  );
+  const formulaPool = useMemo(
+    () =>
+      Array.from(
+        new Set(studyQuestions.flatMap((item) => item.formulasNeeded)),
+      )
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [],
   );
 
   const selectedRating = progress.ratings[question.id];
@@ -194,6 +210,10 @@ export function QuestionViewClient({ question }: QuestionViewClientProps) {
             questionId={question.id}
             questionText={question.question}
             expectedAnswer={question.finalAnswer}
+            questionType={question.subcategory}
+            formulasNeeded={question.formulasNeeded}
+            questionTypePool={questionTypePool}
+            formulaPool={formulaPool}
           />
         </div>
       </article>

@@ -38,6 +38,22 @@ export function PracticePanel() {
 
   const started = sessionQuestions.length > 0;
   const current = sessionQuestions[index];
+  const questionTypePool = useMemo(
+    () =>
+      Array.from(new Set(studyQuestions.map((item) => item.subcategory)))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [],
+  );
+  const formulaPool = useMemo(
+    () =>
+      Array.from(
+        new Set(studyQuestions.flatMap((item) => item.formulasNeeded)),
+      )
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [],
+  );
 
   const progressLabel = useMemo(() => {
     if (!started) {
@@ -264,6 +280,10 @@ export function PracticePanel() {
                 questionId={current.id}
                 questionText={current.question}
                 expectedAnswer={current.finalAnswer}
+                questionType={current.subcategory}
+                formulasNeeded={current.formulasNeeded}
+                questionTypePool={questionTypePool}
+                formulaPool={formulaPool}
                 onValidationChange={setCanProceed}
               />
             </div>
