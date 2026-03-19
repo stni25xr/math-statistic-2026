@@ -4,9 +4,7 @@ export interface QuestionSubpart {
   body: string;
 }
 
-// Only treat labels as sub-question markers when they start at the beginning
-// of text or right after whitespace. This avoids false positives like "A>B)".
-const markerRegex = /(?:(?<=^)|(?<=\s))(\((?:[a-z]|i{1,3}|iv|v)\)|(?:[a-e]\)))/gi;
+const markerRegex = /(?:\(([a-z]|i{1,3}|iv|v)\)|\b([a-e])\))/gi;
 
 export function parseQuestionParts(text: string): {
   intro: string;
@@ -25,11 +23,7 @@ export function parseQuestionParts(text: string): {
     const current = matches[i];
     const next = matches[i + 1];
 
-    const marker = current[1] ?? current[0];
-    const markerStart = current.index ?? 0;
-    const markerOffset = current[0].lastIndexOf(marker);
-    const labelStart = markerStart + (markerOffset > -1 ? markerOffset : 0);
-    const start = labelStart + marker.length;
+    const start = (current.index ?? 0) + current[0].length;
     const end = next?.index ?? text.length;
 
     const body = text
@@ -38,8 +32,8 @@ export function parseQuestionParts(text: string): {
       .trim();
 
     parts.push({
-      key: `${marker}-${i}`,
-      label: marker,
+      key: `${current[0]}-${i}`,
+      label: current[0],
       body,
     });
   }

@@ -31,12 +31,7 @@ interface DraftState {
   selectedFormulaByPart: Record<string, string>;
 }
 
-interface TutorMessage {
-  role: "user" | "assistant";
-  content: string;
-}
-
-type SidePanel = "none" | "calculator" | "formulas" | "tables" | "ai";
+type SidePanel = "none" | "calculator" | "formulas" | "tables";
 
 const calcRows = [
   ["(", ")", "<-", "C", "AC"],
@@ -63,26 +58,6 @@ const mathSymbols: Array<{ label: string; token: string }> = [
   { label: "√", token: "√" },
   { label: "∞", token: "∞" },
 ];
-
-const formulaSheetOverrides: Record<string, string> = {
-  "Total success probability per question via total probability":
-    "p = P(K) + P(G)P(R|G)",
-  "Law of total probability for denominator": "P(B) = Σ P(B|A_k)P(A_k)",
-  "Total probability denominator": "P(B) = Σ P(B|A_k)P(A_k)",
-  "Total probability in denominator": "P(B) = Σ P(B|A_k)P(A_k)",
-  "Bayes rule": "P(A|B) = P(B|A)P(A) / P(B)",
-  "Bayes with prevalence":
-    "P(D|+) = P(+|D)P(D) / [P(+|D)P(D) + P(+|D^c)P(D^c)]",
-  "Two-branch denominator": "P(B) = P(B|A)P(A) + P(B|A^c)P(A^c)",
-  "W=A-B is normal": "W = A - B",
-  "mu_W=mu_A-mu_B": "μ_W = μ_A - μ_B",
-  "var_W=var_A+var_B": "Var(W) = Var(A) + Var(B)",
-  "Normal approximation: X approx N(np,np(1-p))": "X ≈ N(np, np(1-p))",
-  "CLT/Binomial normal approximation: X approx N(np, np(1-p))":
-    "X ≈ N(np, np(1-p))",
-  "X ~ Bin(n,p) for count of correct answers": "X ~ Bin(n,p)",
-  "P(X <= x) = Phi((x-mu)/sigma)": "P(X ≤ x) = Φ((x-μ)/σ)",
-};
 
 function storageKey(questionId: string): string {
   return `math-stat-2026-minimal-${questionId}`;
@@ -172,36 +147,6 @@ function buildDropdownOptions(
   return options.slice(0, 3);
 }
 
-function toFormulaSheetText(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return trimmed;
-  }
-
-  const overridden = formulaSheetOverrides[trimmed];
-  if (overridden) {
-    return overridden;
-  }
-
-  return trimmed
-    .replace(/\bmu\b/g, "μ")
-    .replace(/\bsigma\b/g, "σ")
-    .replace(/\blambda\b/g, "λ")
-    .replace(/\bPhi\b/g, "Φ")
-    .replace(/\btheta\b/g, "θ")
-    .replace(/x_bar/g, "x̄")
-    .replace(/p_hat/g, "p̂")
-    .replace(/\bvar\b/g, "Var")
-    .replace(/\bapprox\b/g, "≈")
-    .replace(/\+\/-/g, "±")
-    .replace(/<=/g, "≤")
-    .replace(/>=/g, "≥")
-    .replace(/!=/g, "≠")
-    .replace(/sqrt\(/g, "√(")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function evaluateExpression(expression: string, ansValue: string): string {
   const raw = expression.trim();
   if (!raw) {
@@ -268,14 +213,10 @@ export function AnswerWorkspace({
   });
 
   const parsed = useMemo(() => parseQuestionParts(questionText), [questionText]);
-  const normalizedFormulaPool = useMemo(
-    () => formulaPool.map((item) => toFormulaSheetText(item)),
-    [formulaPool],
-  );
   const partEntries = useMemo<PartEntry[]>(() => {
     const formulaByPart = Array.from(
       { length: parsed.parts.length > 0 ? parsed.parts.length : 1 },
-      (_, index) => toFormulaSheetText(formulasNeeded[index] ?? formulasNeeded[0] ?? ""),
+      (_, index) => formulasNeeded[index] ?? formulasNeeded[0] ?? "",
     );
     const expectedParts = splitExpectedAnswer(
       expectedAnswer,
@@ -326,13 +267,8 @@ export function AnswerWorkspace({
   const [calcInput, setCalcInput] = useState("");
   const [calcResult, setCalcResult] = useState("");
   const [calcError, setCalcError] = useState("");
-  const [aiMessages, setAiMessages] = useState<TutorMessage[]>([]);
-  const [aiInput, setAiInput] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
 
   const answerRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
-  const aiScrollRef = useRef<HTMLDivElement | null>(null);
 
   const questionTypeOptionsByPart = useMemo(() => {
     const data: Record<string, string[]> = {};
@@ -351,12 +287,12 @@ export function AnswerWorkspace({
     partEntries.forEach((part) => {
       data[part.key] = buildDropdownOptions(
         part.expectedFormula,
-        normalizedFormulaPool,
+        formulaPool,
         `${questionId}-${part.key}-formula`,
       );
     });
     return data;
-  }, [normalizedFormulaPool, partEntries, questionId]);
+  }, [formulaPool, partEntries, questionId]);
 
   useEffect(() => {
     localStorage.setItem(
@@ -427,78 +363,6 @@ export function AnswerWorkspace({
     setStatus("fail");
     setStatusMessage(issues.join(" "));
   };
-
-  const resetWorkspace = () => {
-    setAnswersByPart({});
-    setSelectedQuestionTypeByPart({});
-    setSelectedFormulaByPart({});
-    setStatus("idle");
-    setStatusMessage("");
-    setCalcInput("");
-    setCalcResult("");
-    setCalcError("");
-    setActivePart(partEntries[0]?.key ?? "single");
-  };
-
-  const sendAiMessage = async () => {
-    const prompt = aiInput.trim();
-    if (!prompt || aiLoading) {
-      return;
-    }
-
-    const userMessage: TutorMessage = { role: "user", content: prompt };
-    const nextMessages = [...aiMessages, userMessage];
-
-    setAiMessages(nextMessages);
-    setAiInput("");
-    setAiLoading(true);
-    setAiError("");
-
-    try {
-      const response = await fetch("/api/ai-tutor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionId,
-          questionText,
-          formulasNeeded,
-          questionType,
-          conversation: nextMessages.slice(-8),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("AI request failed");
-      }
-
-      const data = (await response.json()) as { reply?: string };
-      const reply = data.reply?.trim();
-
-      if (!reply) {
-        throw new Error("Empty AI reply");
-      }
-
-      setAiMessages((previous) => [
-        ...previous,
-        { role: "assistant", content: reply },
-      ]);
-    } catch {
-      setAiError(t("ai_error"));
-      setAiMessages((previous) => [
-        ...previous,
-        { role: "assistant", content: t("ai_error") },
-      ]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!aiScrollRef.current) {
-      return;
-    }
-    aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight;
-  }, [aiLoading, aiMessages, panel]);
 
   const insertToActiveAnswer = (token: string) => {
     const key = activePart;
@@ -622,13 +486,6 @@ export function AnswerWorkspace({
           >
             {t("table_pdf")}
           </button>
-          <button
-            type="button"
-            onClick={() => setPanel("ai")}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            {t("ai_tutor")}
-          </button>
         </div>
       </div>
 
@@ -733,22 +590,13 @@ export function AnswerWorkspace({
       </div>
 
       <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/25">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={checkAnswers}
-            className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
-          >
-            {t("check_answer")}
-          </button>
-          <button
-            type="button"
-            onClick={resetWorkspace}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
-          >
-            {t("reset")}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={checkAnswers}
+          className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+        >
+          {t("check_answer")}
+        </button>
 
         {status === "pass" ? (
           <span className="ml-2 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
@@ -782,9 +630,7 @@ export function AnswerWorkspace({
                   ? t("calculator")
                   : panel === "formulas"
                     ? t("formula_pdf")
-                    : panel === "tables"
-                      ? t("table_pdf")
-                      : t("ai_tutor")}
+                    : t("table_pdf")}
               </p>
               <button
                 type="button"
@@ -842,70 +688,6 @@ export function AnswerWorkspace({
                 src={`${basePrefix}/references/tables.pdf#toolbar=1&navpanes=0&zoom=70`}
                 className="mt-3 h-[calc(100vh-7rem)] w-full rounded-lg border border-slate-300 dark:border-slate-700"
               />
-            ) : null}
-
-            {panel === "ai" ? (
-              <div className="mt-3 flex h-[calc(100vh-7rem)] flex-col">
-                <div
-                  ref={aiScrollRef}
-                  className="flex-1 space-y-3 overflow-y-auto rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
-                >
-                  {aiMessages.length === 0 ? (
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      {t("ask_ai_placeholder")}
-                    </p>
-                  ) : (
-                    aiMessages.map((message, index) => (
-                      <div
-                        key={`${message.role}-${index}`}
-                        className={`rounded-lg px-3 py-2 text-sm ${
-                          message.role === "user"
-                            ? "ml-8 bg-blue-600 text-white"
-                            : "mr-8 bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100"
-                        }`}
-                      >
-                        <MathText text={message.content} />
-                      </div>
-                    ))
-                  )}
-                  {aiLoading ? (
-                    <p className="text-sm text-slate-600 dark:text-slate-300">
-                      {t("thinking")}
-                    </p>
-                  ) : null}
-                </div>
-
-                {aiError ? (
-                  <p className="mt-2 text-xs text-rose-700 dark:text-rose-300">{aiError}</p>
-                ) : null}
-
-                <div className="mt-2 flex gap-2">
-                  <textarea
-                    value={aiInput}
-                    onChange={(event) => setAiInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        void sendAiMessage();
-                      }
-                    }}
-                    placeholder={t("ask_ai_placeholder")}
-                    className="min-h-20 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-blue-500 focus:ring dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void sendAiMessage()}
-                    disabled={aiLoading || !aiInput.trim()}
-                    className={`h-fit rounded-lg px-3 py-2 text-sm font-semibold text-white ${
-                      aiLoading || !aiInput.trim()
-                        ? "cursor-not-allowed bg-slate-400"
-                        : "bg-blue-700 hover:bg-blue-800"
-                    }`}
-                  >
-                    {t("send")}
-                  </button>
-                </div>
-              </div>
             ) : null}
           </aside>
         </>

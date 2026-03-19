@@ -10,13 +10,6 @@ const distributionMap: Record<string, string> = {
 };
 
 const symbolMap: Array<[RegExp, string]> = [
-  [/mu(?=_)/g, "\\mu"],
-  [/sigma(?=_)/g, "\\sigma"],
-  [/lambda(?=_)/g, "\\lambda"],
-  [/Phi(?=_)/g, "\\Phi"],
-  [/x_bar/g, "\\bar{x}"],
-  [/p_hat/g, "\\hat{p}"],
-  [/var(?=_)/g, "\\mathrm{Var}"],
   [/\bmu\b/g, "\\mu"],
   [/\bsigma\b/g, "\\sigma"],
   [/\blambda\b/g, "\\lambda"],
@@ -31,7 +24,7 @@ const symbolMap: Array<[RegExp, string]> = [
 ];
 
 export const mathTokenRegex =
-  /([A-Za-z]\s*~\s*(?:N|Poi|Bin|bin|Exp|exp|geom|t)\([^)]*\)|(?:N|Poi|Bin|bin|Exp|exp|geom|t)\([^)]*\)|P\([^)]*\)|Phi\([^)]*\)|[A-Za-z]+_[A-Za-z0-9]+|[A-Za-z]\^\d+)/g;
+  /([A-Za-z]\s*~\s*(?:N|Poi|Bin|bin|Exp|exp|geom|t)\([^)]*\)|(?:N|Poi|Bin|bin|Exp|exp|geom|t)\([^)]*\)|P\([^)]*\)|Phi\([^)]*\)|[A-Za-z]_[A-Za-z0-9]+|[A-Za-z]\^\d+)/g;
 
 export function normalizeLatex(raw: string): string {
   let out = raw.trim();
