@@ -29,7 +29,7 @@ A focused exam-training platform for Mathematical Statistics.
   - completed questions
   - flagged-for-review questions
   - self-ratings
-- 3-day crash plan targeting a 30-point result.
+- Optional AI Tutor panel (ChatGPT) for step-by-step help.
 
 ## Run locally
 
@@ -41,6 +41,21 @@ npm run dev
 ```
 
 Then open [http://localhost:3000](http://localhost:3000).
+
+### Optional: enable AI Tutor (ChatGPT)
+
+Create `trainer/.env.local`:
+
+```bash
+OPENAI_API_KEY=your_api_key_here
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Then restart dev server (`npm run dev`).
+
+Notes:
+- API key is created in OpenAI Platform: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+- AI Tutor runs through `/api/ai-tutor` and needs local/server runtime (not pure static hosting).
 
 ## Public deployment (GitHub Pages)
 
@@ -59,7 +74,7 @@ app/
   categories/[slug]/page.tsx      # Category page
   questions/[id]/page.tsx         # Full question view
   practice/page.tsx               # Practice mode
-  crash-plan/page.tsx             # 3-day crash plan
+  api/ai-tutor/route.ts           # AI tutor backend
 components/
   category-card.tsx
   formula-box.tsx
